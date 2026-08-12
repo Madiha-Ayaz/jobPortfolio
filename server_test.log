@@ -1,0 +1,13 @@
+
+> modern-portfolio@0.1.0 dev:server
+> ts-node server.ts
+
+(node:29544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///D:/C%20DATA/Documents/my-job-portfolio-main/server.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\D:\C DATA\Documents\my-job-portfolio-main\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[dotenv@17.2.3] injecting env (2) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+Agent server running on http://localhost:3001
+OpenRouter key: loaded
+Model: google/gemini-2.0-flash-exp:free
+OpenRouter error: 401 Missing Authentication header

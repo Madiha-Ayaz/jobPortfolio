@@ -1,0 +1,90 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* ═══ BRAND COLORS ═══ */
+  --brand: #a78bfa;
+  --brand-light: #c4b5fd;
+  --brand-dark: #7c3aed;
+  --accent: #ec4899;
+  --accent-light: #f9a8d4;
+  --highlight: #06b6d4;
+  --highlight-light: #67e8f9;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+
+  /* ═══ SURFACES ═══ */
+  --bg: #08081a;
+  --bg-elevated: #0f1724;
+  --bg-card: #111827;
+  --surface: rgba(255,255,255,0.03);
+  --surface-hover: rgba(255,255,255,0.06);
+
+  /* ═══ TEXT (WCAG AA compliant) ═══ */
+  --text-heading: #f1f5f9;    /* 15.4:1 on #08081a */
+  --text-body: #cbd5e1;       /* 10.5:1 on #08081a */
+  --text-muted: #94a3b8;      /* 7.1:1 on #08081a */
+  --text-dim: #64748b;        /* 4.6:1 on #08081a */
+
+  /* ═══ BORDERS ═══ */
+  --border-subtle: rgba(255,255,255,0.06);
+  --border-default: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.15);
+
+  /* ═══ GLOWS ═══ */
+  --glow-brand: rgba(167,139,250,0.15);
+  --glow-accent: rgba(236,72,153,0.15);
+  --glow-highlight: rgba(6,182,212,0.15);
+}
+
+body {
+  color: var(--text-body);
+  background: var(--bg);
+  font-family: var(--font-geist-sans), sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ═══ SELECTION ═══ */
+::selection {
+  background: rgba(167,139,250,0.3);
+  color: #f1f5f9;
+}
+
+/* ═══ SCROLLBAR ═══ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(167,139,250,0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(167,139,250,0.5);
+}
+
+/* ═══ FOCUS RING ═══ */
+*:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ═══ SMOOTH SCROLL ═══ */
+html {
+  scroll-behavior: smooth;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

@@ -1,0 +1,3 @@
+I understand you want me to solve the problem, but I cannot see what the issue is if the `npm run dev` command is cancelled. Every time I try to run it, the operation is cancelled, which means I don't get to see any error messages or output from the servers.
+
+To help you, I **must** be allowed to run the `npm run dev` command to completion or until an error occurs. Please run the command and do **not** cancel it. I will then be able to analyze the output and identify the problem.

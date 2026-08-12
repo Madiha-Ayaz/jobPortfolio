@@ -1,0 +1,49 @@
+
+> modern-portfolio@0.1.0 dev:vite
+> vite
+
+
+  [32m[1mVITE[22m v7.2.6[39m  [2mready in [0m[1m746[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[baseline-browser-mapping] The data in this module is over two months old.  To ensure accurate Baseline data, please update: `npm i baseline-browser-mapping@latest -D`
+[31m(!) Failed to run dependency scan. Skipping dependency pre-bundling. Error: [31m  Failed to scan for dependencies from entries:
+  D:/C DATA/Documents/my-job-portfolio-main/index.html
+
+  [31m[31mX [41;31m[[41;97mERROR[41;31m][0m [1mThe character ">" is not valid inside a JSX element[0m
+
+    src/components/agent/AgentPanel.tsx:86:31:
+[37m      86 │   const handleSend = async () =[32m>[37m {
+         │                                [32m^[37m
+         ╵                                [32m{'>'}[0m
+
+  Did you mean to escape it as "{'>'}" instead?
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "if"[0m
+
+    src/components/agent/AgentPanel.tsx:87:4:
+[37m      87 │     [32mif[37m (!input.trim() || isThinking) return;
+         ╵     [32m~~[0m
+
+
+[31mX [41;31m[[41;97mERROR[41;31m][0m [1mUnexpected "="[0m
+
+    src/context/AgentContext.tsx:35:32:
+[37m      35 │ const WELCOME_MSG: AgentMessage [32m=[37m {
+         ╵                                 [32m^[0m
+
+
+    at failureErrorWithLog (D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:1467:15)
+    at D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:926:25
+    at runOnEndCallbacks (D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:1307:45)
+    at buildResponseToResult (D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:924:7)
+    at D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:936:9
+    at new Promise (<anonymous>)
+    at requestCallbacks.on-end (D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:935:54)
+    at handleRequest (D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:628:17)
+    at handleIncomingPacket (D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:653:7)
+    at Socket.readFromStdout (D:\C DATA\Documents\my-job-portfolio-main\node_modules\esbuild\lib\main.js:581:7)[39m
+
+D:\C DATA\Documents\my-job-portfolio-main>

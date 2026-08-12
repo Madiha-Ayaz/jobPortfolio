@@ -1,0 +1,1 @@
+Set-Location 'D:\C DATA\Documents\my-job-portfolio-main'; npm install --no-audit --no-fund @react-three/fiber@8.17.10 @react-three/drei@9.114.0 three@0.169.0 2>&1 | Out-File -FilePath 'D:\C DATA\Documents\my-job-portfolio-main\install2.log'

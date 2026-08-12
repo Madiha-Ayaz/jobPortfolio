@@ -1,0 +1,59 @@
+{
+  "nav": {
+    "home": "Home",
+    "about": "About",
+    "projects": "Projects",
+    "blog": "Blog",
+    "contact": "Contact",
+    "resume": "Resume"
+  },
+  "hero": {
+    "welcome": "Welcome to My Portfolio",
+    "subtitle": "Full Stack Developer | AI Enthusiast | Problem Solver",
+    "cta": "Explore My Work"
+  },
+  "about": {
+    "title": "About Me",
+    "bio": "I'm a passionate developer focused on creating innovative solutions with cutting-edge technology.",
+    "skills": "Skills",
+    "experience": "Experience",
+    "education": "Education"
+  },
+  "projects": {
+    "title": "Featured Projects",
+    "viewMore": "View More",
+    "liveDemo": "Live Demo",
+    "sourceCode": "Source Code"
+  },
+  "contact": {
+    "title": "Get In Touch",
+    "subtitle": "Let's discuss your next project",
+    "email": "Email",
+    "phone": "Phone",
+    "message": "Message",
+    "send": "Send Message",
+    "sending": "Sending...",
+    "success": "Message sent successfully!",
+    "error": "Error sending message"
+  },
+  "chatbot": {
+    "title": "Ask Me Anything",
+    "placeholder": "Type your question...",
+    "send": "Send",
+    "typing": "Thinking..."
+  },
+  "theme": {
+    "light": "Light Mode",
+    "dark": "Dark Mode",
+    "toggle": "Toggle Theme"
+  },
+  "language": {
+    "english": "English",
+    "hindi": "हिन्दी",
+    "select": "Select Language"
+  },
+  "footer": {
+    "copyright": "© 2026 My Portfolio. All rights reserved.",
+    "followMe": "Follow Me"
+  }
+}
