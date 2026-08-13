@@ -6,10 +6,8 @@ import { useSearch } from '@/context/SearchContext';
 import { projects as allProjects } from '@/lib/data';
 import AnimatedSection from '@/components/ui/AnimatedSection';
 import AIProjectRecommender from '@/components/ai/AIProjectRecommender';
-import { lazy, useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-
-const CosmicBackground = lazy(() => import('@/components/3d/CosmicBackground'));
 
 const PALETTES = [
   { color: '#8b5cf6', accent: '#c4b5fd', glow: 'rgba(139,92,246,0.45)', bg1: '#1e1145', bg2: '#0f0828', icon: 'M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z' },
@@ -58,7 +56,7 @@ function SlideCard({ project, index }: { project: typeof allProjects[0]; index: 
 
   return (
     <div
-      className="flex-shrink-0 w-[350px] md:w-[420px] rounded-2xl overflow-hidden cursor-pointer transition-all duration-400"
+      className="flex-shrink-0 w-full max-w-[420px] rounded-2xl overflow-hidden cursor-pointer transition-all duration-400"
       style={{
         background: `linear-gradient(170deg, ${p.bg1} 0%, ${p.bg2} 55%, #08080f 100%)`,
         border: `1px solid ${hovered ? p.color + '60' : p.color + '20'}`,
@@ -71,7 +69,7 @@ function SlideCard({ project, index }: { project: typeof allProjects[0]; index: 
       onMouseLeave={() => setHovered(false)}
     >
       {/* Project Image */}
-      <div className="relative h-48 overflow-hidden" style={{ background: `radial-gradient(ellipse at top, ${p.color}25, ${p.bg2})` }}>
+      <div className="relative h-40 sm:h-48 overflow-hidden" style={{ background: `radial-gradient(ellipse at top, ${p.color}25, ${p.bg2})` }}>
         {project.imageUrl && (
           <img
             src={project.imageUrl}
@@ -97,7 +95,7 @@ function SlideCard({ project, index }: { project: typeof allProjects[0]; index: 
         </div>
       </div>
 
-      <div className="p-6">
+      <div className="p-5 sm:p-6">
         {/* Title */}
         <div className="flex items-center gap-3 mb-3">
           <div
@@ -111,7 +109,7 @@ function SlideCard({ project, index }: { project: typeof allProjects[0]; index: 
               <path strokeLinecap="round" strokeLinejoin="round" d={p.icon} />
             </svg>
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="text-[10px] font-bold tracking-[0.2em] uppercase" style={{ color: `${p.accent}70` }}>
               Project {String(index + 1).padStart(2, '0')}
             </div>
@@ -191,7 +189,7 @@ function SlideCard({ project, index }: { project: typeof allProjects[0]; index: 
 
 export default function ProjectsPage() {
   const { searchQuery } = useSearch();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const filteredProjects = allProjects.filter(
     (p) =>
@@ -200,14 +198,20 @@ export default function ProjectsPage() {
       p.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const scroll = (dir: number) => {
-    if (scrollRef.current) scrollRef.current.scrollBy({ left: dir * 440, behavior: 'smooth' });
-  };
+  const isAiProject = (p: typeof allProjects[0]) =>
+    /AI|Agent|GPT|RAG|LLM|OpenAI|Gemini|Machine Learning/i.test(`${p.title} ${p.description} ${p.tags.join(' ')}`);
+
+  const orderedProjects = [
+    ...filteredProjects.filter(isAiProject),
+    ...filteredProjects.filter((p) => !isAiProject(p)),
+  ];
+
+  useEffect(() => {
+    setActiveIndex(0);
+  }, [orderedProjects.length]);
 
   return (
     <div className="relative min-h-screen text-body overflow-hidden">
-      <CosmicBackground />
-
       <div className="relative z-10">
         {/* ═══ HERO ═══ */}
         <AnimatedSection>
@@ -238,7 +242,7 @@ export default function ProjectsPage() {
             </p>
 
             {/* Stats */}
-            <div className="flex items-center justify-center gap-8 md:gap-14">
+            <div className="flex items-center justify-center gap-5 sm:gap-8 md:gap-14">
               {[
                 { value: allProjects.length, label: 'Projects', suffix: '+' },
                 { value: 12, label: 'Technologies', suffix: '+' },
@@ -255,8 +259,8 @@ export default function ProjectsPage() {
           </div>
         </AnimatedSection>
 
-        {/* ═══ HORIZONTAL SCROLL ═══ */}
-        {filteredProjects.length > 0 && (
+        {/* ═══ PROJECT SLIDER ═══ */}
+        {orderedProjects.length > 0 && (
           <AnimatedSection className="mt-4">
             <div className="text-center mb-8">
               <h2
@@ -266,31 +270,52 @@ export default function ProjectsPage() {
                   WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
                 }}
               >
-                Featured Work
+                All Projects
               </h2>
-              <p className="text-muted text-sm">Scroll to explore · Click to view live demos</p>
+              <p className="text-muted text-sm">Browse every project · Live demos &amp; source code included</p>
             </div>
 
-            <div className="relative group/scroll">
-              <button onClick={() => scroll(-1)} className="absolute left-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-surface backdrop-blur-md border border-border-subtle flex items-center justify-center text-muted hover:text-heading hover:bg-surface-hover transition-all opacity-0 group-hover/scroll:opacity-100">
+            <div className="relative max-w-5xl mx-auto px-4 md:px-16">
+              <button
+                onClick={() => setActiveIndex((prev) => (prev - 1 + orderedProjects.length) % orderedProjects.length)}
+                aria-label="Previous project"
+                className="absolute left-1 sm:left-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-11 md:h-11 rounded-full bg-surface backdrop-blur-md border border-border-subtle flex items-center justify-center text-muted hover:text-heading hover:bg-surface-hover transition-all hover:scale-110"
+              >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
               </button>
-              <button onClick={() => scroll(1)} className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-surface backdrop-blur-md border border-border-subtle flex items-center justify-center text-muted hover:text-heading hover:bg-surface-hover transition-all opacity-0 group-hover/scroll:opacity-100">
+              <button
+                onClick={() => setActiveIndex((prev) => (prev + 1) % orderedProjects.length)}
+                aria-label="Next project"
+                className="absolute right-1 sm:right-0 top-1/2 -translate-y-1/2 z-20 w-10 h-10 md:w-11 md:h-11 rounded-full bg-surface backdrop-blur-md border border-border-subtle flex items-center justify-center text-muted hover:text-heading hover:bg-surface-hover transition-all hover:scale-110"
+              >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" /></svg>
               </button>
 
-              <div className="absolute left-0 top-0 bottom-0 w-14 z-10 pointer-events-none bg-gradient-to-r from-background to-transparent" />
-              <div className="absolute right-0 top-0 bottom-0 w-14 z-10 pointer-events-none bg-gradient-to-l from-background to-transparent" />
+              <div className="overflow-hidden">
+                <div
+                  className="flex transition-transform duration-500 ease-out"
+                  style={{ transform: `translateX(-${activeIndex * 100}%)` }}
+                >
+                  {orderedProjects.map((project, i) => (
+                    <div key={project.id} className="w-full flex-shrink-0 flex justify-center px-1">
+                      <SlideCard project={project} index={i} />
+                    </div>
+                  ))}
+                </div>
+              </div>
 
-              <div
-                ref={scrollRef}
-                className="flex gap-6 overflow-x-auto px-10 pb-6 snap-x snap-mandatory scroll-smooth"
-                style={{ scrollbarWidth: 'thin', scrollbarColor: '#a78bfa transparent' }}
-              >
-                {filteredProjects.map((project, i) => (
-                  <div key={project.id} className="snap-center">
-                    <SlideCard project={project} index={i} />
-                  </div>
+              <div className="flex items-center justify-center gap-2 mt-6">
+                {orderedProjects.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveIndex(i)}
+                    aria-label={`Go to project ${i + 1}`}
+                    className={`transition-all duration-300 rounded-full ${
+                      i === activeIndex
+                        ? 'w-8 h-2.5 bg-gradient-to-r from-purple-400 to-pink-400 shadow-lg shadow-pink-400/40'
+                        : 'w-2.5 h-2.5 bg-slate-500 hover:bg-slate-300'
+                    }`}
+                  />
                 ))}
               </div>
             </div>
@@ -352,10 +377,6 @@ export default function ProjectsPage() {
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
-        div::-webkit-scrollbar { height: 5px; }
-        div::-webkit-scrollbar-track { background: transparent; }
-        div::-webkit-scrollbar-thumb { background: #a78bfa; border-radius: 3px; }
-        div::-webkit-scrollbar-thumb:hover { background: #c4b5fd; }
       `}</style>
     </div>
   );

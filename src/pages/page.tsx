@@ -26,7 +26,7 @@ const PALETTES = [
   { color: '#ef4444', accent: '#fca5a5', glow: 'rgba(239,68,68,0.45)', icon: 'M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z' },
 ];
 
-const featuredProjects = projects.slice(0, 3).map((p, i) => ({
+const featuredProjects = projects.map((p, i) => ({
   ...p,
   palette: PALETTES[i % PALETTES.length],
 }));
@@ -149,15 +149,15 @@ export default function HomePage() {
           }}
         />
 
-        <div className="relative z-10 text-center px-4 max-w-5xl">
-          <div className="inline-flex items-center gap-2 mb-6 px-5 py-2 text-xs font-semibold tracking-[0.2em] uppercase rounded-full border border-highlight/20 bg-highlight/5 backdrop-blur-md text-highlight-light" style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1), inset 0 1px 0 rgba(6,182,212,0.15)' }}>
+        <div className="relative z-10 text-center px-4 max-w-5xl w-full">
+          <div className="inline-flex flex-wrap items-center justify-center gap-2 mb-6 px-4 py-2 text-[10px] sm:text-xs font-semibold tracking-[0.2em] uppercase rounded-full border border-highlight/20 bg-highlight/5 backdrop-blur-md text-highlight-light max-w-full" style={{ boxShadow: '0 0 20px rgba(6,182,212,0.1), inset 0 1px 0 rgba(6,182,212,0.15)' }}>
             <IconGlobe size={14} />
             <span>Global People Network · Live</span>
             <IconStar size={14} />
           </div>
 
           <h1
-            className="text-5xl md:text-7xl lg:text-8xl font-black mb-4 leading-tight"
+            className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-black mb-4 leading-tight"
             style={{
               background: 'linear-gradient(135deg, #06b6d4 0%, #ffffff 40%, #a78bfa 100%)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
@@ -169,7 +169,7 @@ export default function HomePage() {
           </h1>
 
           <p
-            className="text-lg md:text-xl font-semibold mb-4"
+            className="text-base sm:text-lg md:text-xl font-semibold mb-4 px-2"
             style={{
               background: 'linear-gradient(90deg, #c4b5fd, #f9a8d4)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
@@ -178,7 +178,7 @@ export default function HomePage() {
             Frontend Developer &bull; AI Enthusiast &bull; 3D Builder
           </p>
 
-          <p className="text-base md:text-lg text-body max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-sm sm:text-base md:text-lg text-body max-w-2xl mx-auto mb-10 leading-relaxed px-2">
             Connecting people, systems, and ideas across the globe through
             intelligent real-time data flow.
           </p>
@@ -236,20 +236,10 @@ export default function HomePage() {
               Hover over the cards to feel the 3D depth.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {featuredProjects.map((project) => (
               <ProjectCard3D key={project.id} project={project} />
             ))}
-          </div>
-          <div className="text-center mt-12">
-            <Link
-              to="/projects"
-              className="inline-flex items-center gap-2 px-7 py-3 rounded-full border border-brand/20 text-brand-light font-semibold hover:bg-brand/10 transition-all"
-              style={{ backdropFilter: 'blur(8px)' }}
-            >
-              <span>See all projects</span>
-              <IconArrowRight size={16} />
-            </Link>
           </div>
         </div>
       </AnimatedSection>

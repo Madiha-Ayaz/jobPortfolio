@@ -6,10 +6,10 @@
   "scripts": {
     "dev": "npm-run-all --parallel dev:vite dev:server",
     "dev:vite": "vite",
-    "dev:server": "node server/index.ts",
+    "dev:server": "node --experimental-strip-types server/index.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "server": "node server/index.ts"
+    "server": "node --experimental-strip-types server/index.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

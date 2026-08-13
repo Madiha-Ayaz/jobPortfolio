@@ -4,7 +4,7 @@
  * cite real portfolio content, and reports confidence + sources to the UI.
  */
 import { Router } from 'express';
-import { client } from '../lib/aiClient.ts';
+import { client, activeModel } from '../lib/aiClient.ts';
 import { config } from '../lib/config.ts';
 import { AGENT_SYSTEM } from '../lib/prompts.ts';
 import { profileToText, getPostBySlug } from '../lib/portfolio.ts';
@@ -74,7 +74,7 @@ router.post('/', async (req, res) => {
     ];
 
     const completion: any = await client.chat.completions.create({
-      model: config.model,
+      model: activeModel,
       messages: fullMessages,
       tools: TOOLS as any,
       tool_choice: 'auto',

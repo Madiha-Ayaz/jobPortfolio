@@ -1,4 +1,5 @@
 import { useMemo, useRef, useEffect } from "react";
+import type { ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
 
@@ -134,12 +135,15 @@ function makePersonNodeTexture(accentHex: string): HTMLCanvasElement {
    ═══════════════════════════════════════════════ */
 
 function CameraController() {
-  const { camera, gl } = useThree();
+  const { camera, gl, size } = useThree();
   const s = useRef({
     drag: false, px: 0, py: 0,
     trx: 0.12, try_: 0, rx: 0.12, ry: 0,
     dist: 22, td: 22,
   });
+  const aspectRef = useRef(1);
+
+  aspectRef.current = size.width / size.height;
 
   useEffect(() => {
     const el = gl.domElement;
@@ -183,9 +187,11 @@ function CameraController() {
 
   useFrame(() => {
     const st = s.current;
+    const aspect = aspectRef.current;
+    const fit = Math.max(1, Math.min(2, 1.7 / aspect));
     st.rx += (st.trx - st.rx) * 0.06;
     st.ry += (st.try_ - st.ry) * 0.06;
-    st.dist += (st.td - st.dist) * 0.07;
+    st.dist += (st.td * fit - st.dist) * 0.07;
     camera.position.x = Math.sin(st.ry) * st.dist * Math.cos(st.rx);
     camera.position.z = Math.cos(st.ry) * st.dist * Math.cos(st.rx);
     camera.position.y = 3 + Math.sin(st.rx) * st.dist;
@@ -657,12 +663,23 @@ function NodeHalos() {
 }
 
 /* ═══════════════════════════════════════════════
+   RESPONSIVE SCALE — shrinks the whole scene on
+   narrow (mobile) viewports so nothing is cut off
+   ═══════════════════════════════════════════════ */
+
+function ResponsiveScale({ children }: { children: ReactNode }) {
+  const { size } = useThree();
+  const scale = Math.max(0.42, Math.min(1, (size.width / size.height) / 1.6));
+  return <group scale={scale}>{children}</group>;
+}
+
+/* ═══════════════════════════════════════════════
    SCENE
    ═══════════════════════════════════════════════ */
 
 function Scene() {
   return (
-    <>
+    <ResponsiveScale>
       <fog attach="fog" args={[0x00050c, 80, 220]} />
 
       <ambientLight intensity={0.6} color={0x3355aa} />
@@ -693,7 +710,7 @@ function Scene() {
       <NodeHalos />
 
       <CameraController />
-    </>
+    </ResponsiveScale>
   );
 }
 

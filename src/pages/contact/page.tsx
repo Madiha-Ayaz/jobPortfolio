@@ -1,13 +1,10 @@
 'use client';
 
-import { Suspense, lazy } from 'react';
 import { motion } from 'framer-motion';
 import AnimatedSection from '@/components/ui/AnimatedSection';
 import EnhancedContactForm from '@/components/contact/EnhancedContactForm';
 import ContactInfoCards from '@/components/contact/ContactInfoCards';
 import JobCompatibilityAnalyzer from '@/components/ai/JobCompatibilityAnalyzer';
-
-const CosmicBackground = lazy(() => import('@/components/3d/CosmicBackground'));
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -22,10 +19,6 @@ const itemVariants = {
 export default function ContactPage() {
   return (
     <div className="relative min-h-screen overflow-hidden">
-      <Suspense fallback={<div className="absolute inset-0" style={{ background: '#08081a' }} />}>
-        <CosmicBackground />
-      </Suspense>
-
       <AnimatedSection>
         <motion.div
           className="relative z-10 max-w-6xl mx-auto px-4"
@@ -67,7 +60,7 @@ export default function ContactPage() {
 
             <motion.div className="md:col-span-2" variants={itemVariants}>
               <div
-                className="relative p-8 rounded-2xl"
+                className="relative p-5 sm:p-8 rounded-2xl"
                 style={{
                   background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(167,139,250,0.12)',
@@ -78,7 +71,7 @@ export default function ContactPage() {
                 <div className="absolute -top-px left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.4), rgba(6,182,212,0.4), transparent)' }} />
 
                 <div className="relative z-10">
-                  <h2 className="text-2xl font-black mb-8 text-heading">Send Your Message</h2>
+                  <h2 className="text-xl sm:text-2xl font-black mb-6 sm:mb-8 text-heading">Send Your Message</h2>
                   <EnhancedContactForm />
                 </div>
               </div>
@@ -110,10 +103,10 @@ export default function ContactPage() {
             className="mt-16 text-center pb-16"
           >
             <div
-              className="inline-flex items-center gap-6 px-8 py-5 rounded-2xl"
+              className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 px-6 sm:px-8 py-5 rounded-2xl"
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
-              <div className="text-left">
+              <div className="text-center sm:text-left">
                 <p className="text-sm text-muted mb-1">Looking for other ways to connect?</p>
                 <p className="text-body font-semibold">Check out my social profiles</p>
               </div>

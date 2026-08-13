@@ -117,7 +117,7 @@ const Navbar = () => {
             {/* Search */}
             <div
               className="relative transition-all duration-300"
-              style={{ width: searchFocused ? '220px' : '180px' }}
+              style={{ width: searchFocused ? '200px' : '150px' }}
             >
               <input
                 type="text"

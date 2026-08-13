@@ -831,6 +831,18 @@ const FunnyLogin: React.FC = () => {
         #speech{position:absolute;background:rgba(17,24,39,0.95);border:1px solid var(--border2);border-radius:12px;padding:8px 14px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;opacity:0;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;z-index:30;left:calc(50% - 300px);bottom:380px;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
         #speech.show{opacity:1;transform:translateY(-4px)}
         #speech::after{content:'';position:absolute;bottom:-7px;left:20px;width:12px;height:7px;background:rgba(17,24,39,0.95);clip-path:polygon(0 0,100% 0,50% 100%);border-left:1px solid var(--border2);border-right:1px solid var(--border2);}
+        @media (max-width: 640px) {
+          #stage{height:620px;width:100%;}
+          #char-canvas{left:6px;bottom:80px;transform:none;}
+          #briefcase-wrap{left:auto;right:6px;bottom:70px;}
+          #briefcase-wrap:hover{transform:scale(1.04) translateY(-4px)}
+          #bag-hint{right:12px;left:auto;bottom:200px;}
+          #speech{left:50%;right:auto;bottom:auto;top:110px;transform:translateX(-50%);max-width:86vw;white-space:normal;text-align:center;}
+          #speech.show{transform:translateX(-50%) translateY(-4px)}
+          #form-panel{left:50%;right:auto;bottom:30px;transform:translateX(-50%) translateY(30px);width:92vw;max-width:300px;}
+          #form-panel.visible{transform:translateX(-50%) translateY(0);}
+          #toast{white-space:normal;width:max-content;max-width:88vw;text-align:center;}
+        }
       `}</style>
     </div>
   );

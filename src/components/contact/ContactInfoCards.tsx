@@ -41,7 +41,7 @@ function Card({ card, index }: { card: ContactCard; index: number }) {
 
   return (
     <div
-      className="relative rounded-xl p-6 transition-all duration-300 cursor-default"
+      className="relative rounded-xl p-5 sm:p-6 transition-all duration-300 cursor-default"
       style={{
         background: hovered ? `${card.color}10` : 'rgba(255,255,255,0.03)',
         border: `1px solid ${hovered ? card.color + '35' : 'rgba(255,255,255,0.06)'}`,
@@ -62,7 +62,7 @@ function Card({ card, index }: { card: ContactCard; index: number }) {
       </div>
 
       <h3 className="text-base font-bold text-heading mb-1">{card.title}</h3>
-      <p className="text-sm font-semibold mb-1" style={{ color: card.color }}>{card.content}</p>
+      <p className="text-sm font-semibold mb-1 break-words" style={{ color: card.color }}>{card.content}</p>
       {card.subtext && <p className="text-xs text-dim">{card.subtext}</p>}
 
       <div

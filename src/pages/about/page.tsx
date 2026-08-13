@@ -1,8 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import AnimatedSection from '@/components/ui/AnimatedSection';
-import { lazy } from 'react';
-
-const CosmicBackground = lazy(() => import('@/components/3d/CosmicBackground'));
 
 const skills = [
   { name: 'Next.js', color: '#ffffff', level: 90 },
@@ -72,7 +69,7 @@ function SkillCard({ skill, index }: { skill: typeof skills[0]; index: number })
   return (
     <div
       ref={ref}
-      className="relative rounded-xl p-4 transition-all duration-300 cursor-default"
+      className="relative rounded-xl p-3 sm:p-4 transition-all duration-300 cursor-default"
       style={{
         background: hovered ? `${skill.color}12` : 'rgba(255,255,255,0.03)',
         border: `1px solid ${hovered ? skill.color + '40' : 'rgba(255,255,255,0.06)'}`,
@@ -83,9 +80,9 @@ function SkillCard({ skill, index }: { skill: typeof skills[0]; index: number })
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
-      <div className="flex items-center justify-between mb-3">
-        <span className="text-sm font-semibold text-heading">{skill.name}</span>
-        <span className="text-xs font-bold" style={{ color: skill.color }}>{skill.level}%</span>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <span className="text-sm font-semibold text-heading min-w-0">{skill.name}</span>
+        <span className="text-xs font-bold flex-shrink-0" style={{ color: skill.color }}>{skill.level}%</span>
       </div>
       <div className="w-full h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
         <div
@@ -135,12 +132,10 @@ function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
 export default function AboutPage() {
   return (
     <div className="relative min-h-screen text-body overflow-hidden">
-      <CosmicBackground />
-
       <div className="relative z-10 max-w-6xl mx-auto px-4">
         {/* ═══ HERO INTRO ═══ */}
         <AnimatedSection>
-          <div className="flex flex-col md:flex-row items-center gap-12 pt-16 pb-12">
+          <div className="flex flex-col lg:flex-row items-center gap-12 pt-16 pb-12">
             {/* Avatar */}
             <div className="flex-shrink-0 relative">
               <div
@@ -167,7 +162,7 @@ export default function AboutPage() {
             </div>
 
             {/* Bio */}
-            <div className="text-center md:text-left">
+            <div className="text-center lg:text-left">
               <div
                 className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 text-xs font-bold tracking-[0.2em] uppercase rounded-full"
                 style={{
@@ -202,7 +197,7 @@ export default function AboutPage() {
               </p>
 
               {/* Stats */}
-              <div className="flex items-center gap-8 mt-8 justify-center md:justify-start">
+              <div className="grid grid-cols-2 gap-x-6 gap-y-6 mt-8 justify-items-center lg:flex lg:items-center lg:gap-8 lg:justify-start">
                 {stats.map((stat) => (
                   <div key={stat.label} className="text-center">
                     <div className="text-2xl md:text-3xl font-black text-brand">
@@ -225,7 +220,7 @@ export default function AboutPage() {
             <p className="text-muted text-sm">Technologies I work with daily</p>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto">
             {skills.map((skill, i) => (
               <SkillCard key={skill.name} skill={skill} index={i} />
             ))}
@@ -245,7 +240,7 @@ export default function AboutPage() {
             {certifications.map((cert) => (
               <div
                 key={cert.name}
-                className="relative flex items-center gap-6 p-6 rounded-2xl transition-all duration-300 group"
+                className="relative flex items-center gap-4 sm:gap-6 p-5 sm:p-6 rounded-2xl transition-all duration-300 group"
                 style={{
                   background: 'rgba(255,255,255,0.03)',
                   border: '1px solid rgba(255,255,255,0.06)',

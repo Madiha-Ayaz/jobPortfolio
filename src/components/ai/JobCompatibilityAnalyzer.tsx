@@ -91,7 +91,7 @@ export default function JobCompatibilityAnalyzer() {
             <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
           </svg>
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h2 className="text-xl font-black text-heading">AI Job Compatibility Analyzer</h2>
           <p className="text-xs text-muted">Paste a job description — get an instant fit score from the AI.</p>
         </div>
@@ -105,7 +105,7 @@ export default function JobCompatibilityAnalyzer() {
           placeholder="Paste the job description here (e.g. 'Looking for a React developer with TypeScript, Tailwind and AI chatbot experience...')"
           className="w-full px-4 py-3 rounded-xl text-sm bg-[#0d0d24]/70 border border-[#10b981]/25 text-body placeholder-dim focus:outline-none focus:ring-2 focus:ring-[#10b981]/40 transition-all resize-none"
         />
-        <div className="flex items-center justify-between mt-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mt-3">
           <p className="text-[11px] text-dim">Powered by the portfolio AI backend · LLM + keyword hybrid</p>
           <button
             onClick={analyze}

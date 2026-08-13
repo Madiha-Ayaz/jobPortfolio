@@ -18,9 +18,8 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import AgentOrb from './components/agent/AgentOrb';
 import { AgenticChatbot } from './components/agent/AgenticChatbot';
 
-// Lazy load the 3D cursor follower + galaxy background
+// Lazy load the 3D cursor follower
 const CursorFollower = lazy(() => import('./components/3d/CursorFollower'));
-const RealisticGalaxy3D = lazy(() => import('./components/3d/RealisticGalaxy3D'));
 
 /** Inner component that has access to theme context */
 function AppContent() {
@@ -39,12 +38,6 @@ function AppContent() {
 
   return (
     <div className={`flex flex-col min-h-screen relative ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-      {/* Galaxy background on ALL pages */}
-      <div className={`fixed inset-0 -z-20 transition-opacity duration-1000 ${theme === 'dark' ? 'opacity-100' : 'opacity-30'}`}>
-        <Suspense fallback={null}>
-          <RealisticGalaxy3D />
-        </Suspense>
-      </div>
       {/* Theme-aware background gradient */}
       <div className={`fixed inset-0 -z-10 bg-gradient-to-b ${bgGradient} transition-all duration-700`} />
 

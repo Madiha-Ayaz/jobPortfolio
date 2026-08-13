@@ -11,6 +11,8 @@
  */
 import express from 'express';
 import cors from 'cors';
+import fs from 'fs';
+import path from 'path';
 import { config, hasAiKey, activeProvider, activeModel } from './lib/config.ts';
 import { isAiAvailable, complete } from './lib/aiClient.ts';
 import { rateLimit, clientIp, sanitizeText } from './lib/security.ts';
@@ -113,6 +115,20 @@ app.post('/api/insights', async (req, res) => {
     return res.status(500).json({ error: error?.message || 'Failed to get insights' });
   }
 });
+
+// ── Static frontend (single-instance deploy) ─────────────────────────────
+// If a built frontend exists in dist/, serve it and fall back to index.html
+// for client-side routes (SPA). API routes are handled above.
+const distDir = path.resolve(process.cwd(), 'dist');
+if (fs.existsSync(path.join(distDir, 'index.html'))) {
+  app.use(express.static(distDir, { index: 'index.html', maxAge: '1d' }));
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+      return res.sendFile(path.join(distDir, 'index.html'));
+    }
+    next();
+  });
+}
 
 // 404 + error handlers
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
