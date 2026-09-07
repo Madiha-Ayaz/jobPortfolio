@@ -16,6 +16,8 @@ import {
   skills as seedSkills,
   certifications as seedCertifications,
   education as seedEducation,
+} from '../../src/lib/data.ts';
+import type {
   Project,
   BlogPost,
   Profile,
