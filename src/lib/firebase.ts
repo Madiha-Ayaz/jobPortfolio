@@ -67,6 +67,34 @@ if (isFirebaseConfigured && typeof window !== "undefined") {
     app = null;
     auth = null;
   }
+  // Dev-only: surface the exact origin that must be in the project's
+  // "Authorized domains" list for Google sign-in to work.
+  if (app && import.meta.env.DEV && typeof location !== "undefined") {
+    // eslint-disable-next-line no-console
+    console.info(
+      "[firebase] Google sign-in must authorize this origin:",
+      location.origin
+    );
+
+    // Ask Google for the REAL authorized-domains list bound to this API key.
+    // This settles whether the domain is genuinely authorized server-side
+    // (as opposed to a browser cache / stale redirect state problem).
+    (async () => {
+      try {
+        const res = await fetch(
+          `https://www.googleapis.com/identitytoolkit/v3/relyingparty/getProjectConfig?key=${firebaseConfig.apiKey}`
+        );
+        const data = await res.json();
+        // eslint-disable-next-line no-console
+        console.info(
+          "[firebase] Authorized domains (server list for this API key):",
+          data?.authorizedDomains
+        );
+      } catch {
+        /* diagnostic only — ignore */
+      }
+    })();
+  }
   if (app && firebaseConfig.measurementId) {
     try {
       analytics = getAnalytics(app);
@@ -82,13 +110,49 @@ if (isFirebaseConfigured && typeof window !== "undefined") {
 
 export { app, auth, analytics };
 
+/**
+ * Clear ALL locally-cached Firebase auth state (pending redirects, cached
+ * auth users, project lookup) and sign out. This is the reliable fix when an
+ * earlier failed sign-in (e.g. before `localhost` was authorized) leaves stale
+ * redirect/domain state that keeps throwing auth/unauthorized-domain even
+ * after the Firebase console has been fixed.
+ */
+export async function resetFirebaseAuth(): Promise<void> {
+  try {
+    if (auth) {
+      try {
+        await auth.signOut();
+      } catch {
+        /* ignore */
+      }
+    }
+    if (typeof window !== "undefined" && typeof localStorage !== "undefined") {
+      const stale: string[] = [];
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith("firebase:")) stale.push(key);
+      }
+      stale.forEach((k) => localStorage.removeItem(k));
+    }
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("[firebase] resetFirebaseAuth error:", err);
+  }
+}
+
 /** Human-readable hints for the most common Google Auth failures. */
 export function describeAuthError(error: unknown): string {
   const code = (error as { code?: string })?.code || '';
   const message = (error as { message?: string })?.message || '';
+  // The exact origin the browser is currently serving from — this is the
+  // value Firebase matches against its "Authorized domains" list.
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const host = typeof window !== 'undefined' ? window.location.hostname : '';
   const hints: Record<string, string> = {
     "auth/unauthorized-domain":
-      "This domain isn't authorized for sign-in. Add it in the Firebase console: Authentication → Settings → Authorized domains.",
+      `Your current address "${origin}" isn't authorized for Google sign-in. ` +
+      `Open Firebase console → Authentication → Settings → Authorized domains and add ` +
+      `exactly: ${host}  (if that still fails, also add: ${origin}). Then restart the dev server.`,
     "auth/popup-blocked":
       "Your browser blocked the pop-up window. Allow pop-ups for this site, then try again.",
     "auth/popup-closed-by-user":
@@ -126,23 +190,43 @@ export async function signInWithGoogle(): Promise<string | null> {
   if (!auth || !isFirebaseConfigured) {
     return "Firebase is not configured yet. Add your .env credentials and restart the dev server.";
   }
-  try {
+  const tryPopup = async () => {
     const provider = new GoogleAuthProvider();
     provider.addScope("email");
     provider.addScope("profile");
-    await signInWithPopup(auth, provider);
+    await signInWithPopup(auth as Auth, provider);
+  };
+  const tryRedirect = async () => {
+    const provider = new GoogleAuthProvider();
+    provider.addScope("email");
+    provider.addScope("profile");
+    await signInWithRedirect(auth as Auth, provider);
+  };
+  try {
+    await tryPopup();
     return null;
   } catch (err: any) {
     const code = err?.code || "";
+    // Popups blocked / unsupported → redirect flow is the standard fallback.
     if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
       try {
-        const provider = new GoogleAuthProvider();
-        provider.addScope("email");
-        provider.addScope("profile");
-        await signInWithRedirect(auth, provider);
+        await tryRedirect();
         return null;
       } catch {
         return describeAuthError(err);
+      }
+    }
+    // A stale pending-redirect from a previously-failed sign-in is the #1
+    // cause of authorized-domain errors persisting after the console is
+    // fixed. Clear it once, then use the redirect flow which is more tolerant.
+    if (code === "auth/unauthorized-domain") {
+      await resetFirebaseAuth();
+      await new Promise((r) => setTimeout(r, 50));
+      try {
+        await tryRedirect();
+        return "Redirecting to Google… you'll come back signed in.";
+      } catch (err2: any) {
+        return describeAuthError(err2?.code ? err2 : err);
       }
     }
     return describeAuthError(err);

@@ -368,22 +368,30 @@ const FunnyLogin: React.FC = () => {
     setTimeout(() => setSpeech('Good morning. Tap the core to unlock. 💎', 3500), 1200);
     // Only mount the 3D canvas after the stage has a real, non-zero size.
     // Mounting it at 0×0 makes the framebuffer incomplete and spams
-    // GL_INVALID_FRAMEBUFFER_OPERATION in the console.
-    const checkReady = () => {
+    // GL_INVALID_FRAMEBUFFER_OPERATION in the console. A ResizeObserver
+    // catches layout settling after route transitions / GSAP entry and on
+    // mobile URL-bar changes — no blind timeout that can fire while the
+    // stage is still 0-sized.
+    const stage = stageRef.current;
+    if (!stage) return undefined;
+    let disposed = false;
+    const markReadyIfSized = () => {
+      if (disposed) return;
       const el = stageRef.current;
-      const ok = el && el.clientWidth > 0 && el.clientHeight > 0;
-      if (ok) setCanvasReady(true);
+      if (el && el.clientWidth > 0 && el.clientHeight > 0) setCanvasReady(true);
     };
-    let raf = requestAnimationFrame(checkReady);
+    let raf = requestAnimationFrame(markReadyIfSized);
+    const ro = new ResizeObserver(() => requestAnimationFrame(markReadyIfSized));
+    ro.observe(stage);
     const onResize = () => {
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(checkReady);
+      raf = requestAnimationFrame(markReadyIfSized);
     };
     window.addEventListener('resize', onResize);
-    const t = setTimeout(() => setCanvasReady(true), 700);
     return () => {
+      disposed = true;
       cancelAnimationFrame(raf);
-      clearTimeout(t);
+      ro.disconnect();
       window.removeEventListener('resize', onResize);
     };
   }, []);
@@ -743,7 +751,7 @@ const FunnyLogin: React.FC = () => {
         .login-scene-root{min-height:100vh;min-height:100dvh;height:100vh;height:100dvh;background:#02070b;font-family:'DM Sans',sans-serif;color:#f0fdf9;position:relative;overflow:hidden;display:block;width:100%;}
         body{min-height:100vh;min-height:100dvh;height:100vh;height:100dvh;background:#02070b;font-family:'DM Sans',sans-serif;color:#f0fdf9;overflow:hidden;position:relative;margin:0;}
         #app{width:100%;height:100%;min-height:100%;position:relative;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;}
-        .login-stage{position:relative;height:100%;overflow:hidden;}
+        .login-stage{position:relative;height:100%;min-height:340px;overflow:hidden;}
         .login-stage::after{content:'';position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,rgba(45,212,167,0),rgba(45,212,167,0.25),rgba(45,212,167,0));}
         .login-formside{position:relative;display:flex;align-items:center;justify-content:center;padding:28px;background:radial-gradient(130% 120% at 0% 50%,rgba(7,22,25,0.9),rgba(2,7,11,0.45));}
         .glass-card{position:relative;z-index:10;width:min(400px,100%);background:rgba(6,16,19,0.74);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(45,212,167,0.2);border-radius:22px;padding:28px 26px 24px;box-shadow:0 24px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.03) inset;}

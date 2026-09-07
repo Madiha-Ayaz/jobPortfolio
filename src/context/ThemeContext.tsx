@@ -527,6 +527,9 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+    }
   }, []);
 
   // ── Translation function ───────────────────
