@@ -1,5 +1,6 @@
 import { initializeApp, getApps, getApp, FirebaseApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
+import { getAuth, Auth, GoogleAuthProvider, signInWithPopup, signInWithRedirect } from "firebase/auth";
+import { getAnalytics, Analytics } from "firebase/analytics";
 
 /**
  * Firebase configuration is read from Vite environment variables.
@@ -54,6 +55,7 @@ if (!isFirebaseConfigured) {
 // we never call it with `undefined` values.
 let app: FirebaseApp | null = null;
 let auth: Auth | null = null;
+let analytics: Analytics | null = null;
 
 if (isFirebaseConfigured && typeof window !== "undefined") {
   try {
@@ -65,6 +67,84 @@ if (isFirebaseConfigured && typeof window !== "undefined") {
     app = null;
     auth = null;
   }
+  if (app && firebaseConfig.measurementId) {
+    try {
+      analytics = getAnalytics(app);
+    } catch (err) {
+      // Analytics is optional and may not be supported in every browser
+      // (or requires the `@firebase/analytics` packages to be present).
+      // eslint-disable-next-line no-console
+      console.warn("[firebase] Analytics unavailable:", err);
+      analytics = null;
+    }
+  }
 }
 
-export { app, auth };
+export { app, auth, analytics };
+
+/** Human-readable hints for the most common Google Auth failures. */
+export function describeAuthError(error: unknown): string {
+  const code = (error as { code?: string })?.code || '';
+  const message = (error as { message?: string })?.message || '';
+  const hints: Record<string, string> = {
+    "auth/unauthorized-domain":
+      "This domain isn't authorized for sign-in. Add it in the Firebase console: Authentication → Settings → Authorized domains.",
+    "auth/popup-blocked":
+      "Your browser blocked the pop-up window. Allow pop-ups for this site, then try again.",
+    "auth/popup-closed-by-user":
+      "The sign-in window was closed before finishing. Try again.",
+    "auth/cancelled-popup-request":
+      "Sign-in was cancelled. Try again.",
+    "auth/account-exists-with-different-credential":
+      "An account with this email already exists using a different sign-in method.",
+    "auth/invalid-credential":
+      "Invalid credentials. Check your email and password, or use Google sign-in.",
+    "auth/wrong-password":
+      "Incorrect password. Try again or reset it.",
+    "auth/user-not-found":
+      "No account found with this email. Sign up first.",
+    "auth/network-request-failed":
+      "Network problem. Check your internet connection and try again.",
+    "auth/admin-restricted-operation":
+      "Google sign-in isn't enabled yet. Turn it on in the Firebase console: Authentication → Sign-in method → Google.",
+    "auth/operation-not-supported-in-this-environment":
+      "Popup sign-in isn't supported here — switching to the redirect flow.",
+  };
+  if (hints[code]) return hints[code];
+  if (message) return `${message} (${code})`;
+  return "Sign-in failed. Please try again.";
+}
+
+/**
+ * Start Sign in with Google.
+ * Uses the popup flow first, and automatically falls back to the redirect
+ * flow when popups are blocked or unsupported (common on mobile / strict
+ * browsers). Returns null on success (or when a redirect was started) and a
+ * friendly error message otherwise.
+ */
+export async function signInWithGoogle(): Promise<string | null> {
+  if (!auth || !isFirebaseConfigured) {
+    return "Firebase is not configured yet. Add your .env credentials and restart the dev server.";
+  }
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.addScope("email");
+    provider.addScope("profile");
+    await signInWithPopup(auth, provider);
+    return null;
+  } catch (err: any) {
+    const code = err?.code || "";
+    if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+      try {
+        const provider = new GoogleAuthProvider();
+        provider.addScope("email");
+        provider.addScope("profile");
+        await signInWithRedirect(auth, provider);
+        return null;
+      } catch {
+        return describeAuthError(err);
+      }
+    }
+    return describeAuthError(err);
+  }
+}

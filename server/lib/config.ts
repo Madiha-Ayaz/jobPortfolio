@@ -40,7 +40,14 @@ export const config = {
 
   // Timeout for a single upstream LLM call (ms)
   aiTimeoutMs: Number(process.env.AI_TIMEOUT_MS || 30_000),
+
+  // Neon (PostgreSQL) — connection string + SSL flag. Server-side only.
+  databaseUrl: process.env.DATABASE_URL || '',
+  databaseSsl: process.env.DATABASE_SSL === 'true' || /sslmode=require/.test(process.env.DATABASE_URL || ''),
 } as const;
+
+/** True when a Neon/Postgres connection string has been provided. */
+export const hasDatabase = Boolean(config.databaseUrl);
 
 export const hasAiKey = Boolean(config.openRouterApiKey || config.grokApiKey);
 

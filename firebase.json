@@ -1,5 +1,23 @@
 {
   "firestore": {
-    "rules": "firestore.rules"
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "auth": {
+    "authorizedDomains": [
+      "localhost",
+      "portfoliojob-48320.firebaseapp.com",
+      "portfoliojob-48320.web.app"
+    ],
+    "providers": {
+      "anonymous": false,
+      "emailPassword": true,
+      "emailLink": false,
+      "phoneNumbers": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "Madiha Ayaz Portfolio",
+        "supportEmail": "madihaayaz248@gmail.com"
+      }
+    }
   }
 }

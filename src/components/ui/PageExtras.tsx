@@ -66,6 +66,7 @@ export function ScrollToTop() {
       )}
     </AnimatePresence>
   );
+}
 
 /* ============================================================
    Cosmic dust - 40 absolutely-positioned sparkles that drift
@@ -107,6 +108,12 @@ export function CosmicDust() {
             delay: d.delay,
             repeat: Infinity,
             ease: 'easeInOut',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
 
 /* ============================================================
    Loading screen with progress bar shown on initial mount.
@@ -151,6 +158,19 @@ export function LoadingScreen({ onDone }: { onDone: () => void }) {
         </svg>
       </motion.div>
       <h1 className="text-3xl font-black mb-2 tracking-wider" style={{ background: 'linear-gradient(90deg, #a78bfa, #f9a8d4)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+        Loading Universe
+      </h1>
+      <p className="text-slate-400 text-sm mb-8">{Math.round(progress)}%</p>
+      <div className="w-64 h-1 rounded-full overflow-hidden bg-white/10">
+        <motion.div
+          className="h-full"
+          style={{ background: 'linear-gradient(90deg, #a855f7, #ec4899, #06b6d4)' }}
+          animate={{ width: `${progress}%` }}
+        />
+      </div>
+    </motion.div>
+  );
+}
 
 /* ============================================================
    Animated counter - counts up to a target number when in view.
@@ -172,6 +192,9 @@ export function AnimatedCounter({ value, suffix = '', duration = 1.6 }: { value:
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
+  }, [inView, value, duration]);
+  return <span ref={ref}>{n}{suffix}</span>;
+}
 
 /* ============================================================
    SVG wave divider used between sections.
@@ -205,6 +228,9 @@ export function SectionDivider({ flip = false }: { flip?: boolean }) {
           transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
         />
       </svg>
+    </div>
+  );
+}
 
 /* ============================================================
    Custom magnetic cursor halo (a soft glow that follows the
@@ -247,30 +273,4 @@ export function CursorHalo() {
       transition={{ type: 'spring', stiffness: 400, damping: 28, mass: 0.5 }}
     />
   );
-}
-    </div>
-  );
-}
-  }, [inView, value, duration]);
-  return <span ref={ref}>{n}{suffix}</span>;
-}
-        Loading Universe
-      </h1>
-      <p className="text-slate-400 text-sm mb-8">{Math.round(progress)}%</p>
-      <div className="w-64 h-1 rounded-full overflow-hidden bg-white/10">
-        <motion.div
-          className="h-full"
-          style={{ background: 'linear-gradient(90deg, #a855f7, #ec4899, #06b6d4)' }}
-          animate={{ width: `${progress}%` }}
-        />
-      </div>
-    </motion.div>
-  );
-}
-          }}
-        />
-      ))}
-    </div>
-  );
-}
 }

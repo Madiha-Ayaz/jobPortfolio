@@ -1,3 +1,5 @@
+import { useTheme } from '@/context/ThemeContext';
+
 const socialLinks = [
   {
     href: 'https://github.com/Madiha-Ayaz?tab=repositories',
@@ -18,12 +20,13 @@ const socialLinks = [
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { t } = useTheme();
 
   return (
     <footer
       className="relative mt-16 border-t"
       style={{
-        background: 'linear-gradient(180deg, transparent 0%, rgba(8,8,26,0.95) 100%)',
+        background: 'linear-gradient(180deg, transparent 0%, rgba(7,11,20,0.95) 100%)',
         borderColor: 'rgba(255,255,255,0.06)',
       }}
     >
@@ -31,7 +34,7 @@ const Footer = () => {
       <div
         className="absolute top-0 left-0 right-0 h-px"
         style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.4) 30%, rgba(6,182,212,0.4) 70%, transparent 100%)',
+          background: 'linear-gradient(90deg, transparent 0%, rgba(129,140,248,0.4) 30%, rgba(56,189,248,0.4) 70%, transparent 100%)',
         }}
       />
 
@@ -42,7 +45,7 @@ const Footer = () => {
             <h3 className="text-xl font-black mb-2 text-heading">
               Madiha Ayaz
             </h3>
-            <p className="text-sm text-muted">Frontend Developer &bull; AI Enthusiast</p>
+            <p className="text-sm text-muted">{t('footer.tagline')}</p>
           </div>
 
           {/* Social icons */}
@@ -59,9 +62,9 @@ const Footer = () => {
                   border: '1px solid rgba(255,255,255,0.08)',
                 }}
                 onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(167,139,250,0.15)';
-                  e.currentTarget.style.borderColor = 'rgba(167,139,250,0.4)';
-                  e.currentTarget.style.boxShadow = '0 0 20px rgba(167,139,250,0.2)';
+                  e.currentTarget.style.background = 'rgba(129,140,248,0.15)';
+                  e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)';
+                  e.currentTarget.style.boxShadow = '0 0 20px rgba(129,140,248,0.2)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
@@ -80,10 +83,10 @@ const Footer = () => {
           {/* Copyright */}
           <div className="text-center md:text-right">
             <p className="text-xs text-dim">
-              &copy; {currentYear} Madiha Ayaz. All rights reserved.
+              &copy; {currentYear} Madiha Ayaz. {t('footer.copyright')}
             </p>
             <p className="text-[10px] text-dim mt-1 opacity-60">
-              Built with React, Three.js &amp; cosmic energy
+              {t('footer.builtWith')}
             </p>
           </div>
         </div>

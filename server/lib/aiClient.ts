@@ -27,7 +27,7 @@ if (hasAiKey) {
       baseURL: config.openRouterBaseUrl,
       defaultHeaders: {
         'HTTP-Referer': config.siteUrl,
-        'X-Title': 'My Job Portfolio — Nova AI',
+        'X-Title': 'My Job Portfolio - Nova AI',
       },
     });
   }

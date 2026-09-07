@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { projects as allProjects } from '@/lib/data';
 import { apiUrl } from '@/utils/api';
+import { trackFinder, trackProjectView } from '@/utils/analytics';
 
 interface Recommendation {
   id: number;
@@ -68,9 +69,12 @@ export default function AIProjectRecommender() {
       if (!Array.isArray(data.matches) || data.matches.length === 0) throw new Error('Empty result');
       setResults(data.matches);
       setStatus(data.aiEnabled ? 'Rated by AI engine' : 'Smart keyword match (AI server offline)');
+      trackFinder(query, data.matches);
     } catch {
-      setResults(clientSideRank(query));
+      const local = clientSideRank(query);
+      setResults(local);
       setStatus('Smart local match (AI server offline)');
+      trackFinder(query, local);
     } finally {
       setLoading(false);
     }
@@ -137,6 +141,7 @@ export default function AIProjectRecommender() {
               href={rec.liveUrl !== '#' ? rec.liveUrl : rec.repoUrl !== '#' ? rec.repoUrl : undefined}
               target={rec.liveUrl !== '#' || rec.repoUrl !== '#' ? '_blank' : undefined}
               rel="noopener noreferrer"
+              onClick={() => trackProjectView(rec.title, rec.id, 'finder')}
               className="block group rounded-xl p-4 transition-all duration-300 hover:-translate-y-0.5"
               style={{
                 background: 'rgba(255,255,255,0.03)',

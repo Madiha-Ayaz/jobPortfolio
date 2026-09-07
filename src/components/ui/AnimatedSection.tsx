@@ -7,7 +7,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 gsap.registerPlugin(ScrollTrigger);
 
-const AnimatedSection = ({ children, className }: { children: React.ReactNode; className?: string }) => {
+const AnimatedSection = ({ children, className, id }: { children: React.ReactNode; className?: string; id?: string }) => {
   const sectionRef = useRef<HTMLDivElement>(null);
 
   useGSAP(() => {
@@ -31,7 +31,7 @@ const AnimatedSection = ({ children, className }: { children: React.ReactNode; c
   }, { scope: sectionRef });
 
   return (
-    <div ref={sectionRef} className={`opacity-0 ${className}`}>
+    <div ref={sectionRef} id={id} className={`opacity-0 ${className}`}>
       {children}
     </div>
   );

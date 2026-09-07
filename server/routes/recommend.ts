@@ -8,6 +8,7 @@ import { completeJson, isAiAvailable } from '../lib/aiClient.ts';
 import { RECOMMEND_SYSTEM } from '../lib/prompts.ts';
 import { projects, projectText } from '../lib/portfolio.ts';
 import { sanitizeText } from '../lib/security.ts';
+import { saveFinder } from '../lib/db.ts';
 
 const router = Router();
 
@@ -105,14 +106,24 @@ router.post('/', async (req, res) => {
 
     const ranked = matches ?? keywordMatches(query);
 
+    const results = ranked.map((m) => publicProject(projects.find((p) => p.id === m.id)!)).map((p, i) => ({
+      ...p,
+      score: ranked[i].score,
+      reason: ranked[i].reason,
+    }));
+
+    // Best-effort: persist the query + top results to Neon.
+    saveFinder({
+      sessionId: sanitizeText(typeof req.body.sessionId === 'string' ? req.body.sessionId : '', 200) || 'unknown',
+      visitorId: sanitizeText(typeof req.body.visitorId === 'string' ? req.body.visitorId : '', 200),
+      query,
+      results,
+    });
+
     return res.json({
       query,
       aiEnabled,
-      matches: ranked.map((m) => publicProject(projects.find((p) => p.id === m.id)!)).map((p, i) => ({
-        ...p,
-        score: ranked[i].score,
-        reason: ranked[i].reason,
-      })),
+      matches: results,
     });
   } catch (err) {
     console.error('[recommend] failed:', err);

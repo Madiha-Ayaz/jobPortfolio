@@ -8,6 +8,7 @@ import { Project } from '@/lib/data';
 import { useGSAP } from '@gsap/react';
 import gsap from 'gsap';
 import { useRef, MouseEvent, useState } from 'react';
+import { trackProjectView } from '@/utils/analytics';
 
 interface ProjectCardProps {
   project: Project;
@@ -239,6 +240,7 @@ const ProjectCard = ({ project, index }: ProjectCardProps) => {
                     href={project.liveUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackProjectView(project.title, project.id, 'live')}
                     className="flex-1 text-center text-sm font-semibold py-2.5 rounded-full transition-all duration-300 hover:scale-105"
                     style={{
                       background: `linear-gradient(135deg, ${palette.color} 0%, ${palette.accent} 100%)`,
@@ -254,6 +256,7 @@ const ProjectCard = ({ project, index }: ProjectCardProps) => {
                     href={project.repoUrl}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={() => trackProjectView(project.title, project.id, 'repo')}
                     className="flex-1 text-center text-sm font-semibold py-2.5 rounded-full border transition-all duration-300 hover:scale-105"
                     style={{
                       borderColor: palette.accent,

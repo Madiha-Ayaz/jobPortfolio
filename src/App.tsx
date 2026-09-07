@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
 import Home from './pages/page';
 import About from './pages/about/page';
@@ -9,64 +9,89 @@ import Blog from './pages/blog/page';
 import BlogPost from './pages/blog/[slug]/page';
 import Contact from './pages/contact/page';
 import Projects from './pages/projects/page';
+import Dashboard from './pages/dashboard/page';
 import Navbar from './components/layout/Navbar';
 import Footer from './components/layout/Footer';
+import ProtectedRoute from './components/auth/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { SearchProvider } from './context/SearchContext';
 import { AgentProvider } from './context/AgentContext';
-import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { ThemeProvider } from './context/ThemeContext';
+import { NotificationProvider } from './context/NotificationContext';
+import { PortfolioProvider } from './context/PortfolioContext';
 import AgentOrb from './components/agent/AgentOrb';
-import { AgenticChatbot } from './components/agent/AgenticChatbot';
+import PageGuide from './components/agent/PageGuide';
+import ToastViewport from './components/notifications/ToastViewport';
+import { trackSessionStart, trackSessionClose, trackPageView } from './utils/analytics';
 
 // Lazy load the 3D cursor follower
 const CursorFollower = lazy(() => import('./components/3d/CursorFollower'));
 
-/** Inner component that has access to theme context */
+/** Inner component that has access to all providers */
 function AppContent() {
-  const { theme, t } = useTheme();
+  const location = useLocation();
+  // Full-bleed scenes (login, register) hide the chrome so they own the whole viewport.
+  const fullscreen = location.pathname === '/auth/login' || location.pathname === '/auth/register' || location.pathname === '/auth/forgot-password';
 
-  // Apply dark/light class to html element
+  // ── Neon analytics: session open/close + page views ──
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', theme === 'dark');
-    document.documentElement.classList.toggle('light', theme === 'light');
-  }, [theme]);
-
-  // Dynamic background gradient based on theme
-  const bgGradient = theme === 'dark'
-    ? 'from-slate-950 via-slate-900 to-slate-950'
-    : 'from-blue-50 via-white to-blue-50';
+    trackSessionStart(location.pathname);
+    return () => trackSessionClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (typeof location.pathname === 'string') trackPageView(location.pathname);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   return (
-    <div className={`flex flex-col min-h-screen relative ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-      {/* Theme-aware background gradient */}
-      <div className={`fixed inset-0 -z-10 bg-gradient-to-b ${bgGradient} transition-all duration-700`} />
+    <div className="relative flex flex-col min-h-screen" style={{ background: 'var(--bg)', color: 'var(--text-body)' }}>
+      {/* Theme-aware background glows */}
+      <div
+        className="fixed inset-0 -z-10 pointer-events-none"
+        style={{
+          background:
+            'radial-gradient(1000px 600px at 15% -10%, var(--bg-glow-1), transparent 60%),' +
+            'radial-gradient(900px 500px at 90% 10%, var(--bg-glow-2), transparent 60%),' +
+            'var(--bg)',
+        }}
+      />
 
-      <Navbar />
-      <main className="flex-grow">
+      {!fullscreen && <Navbar />}
+      <main className="flex flex-1 flex-col" style={fullscreen ? { position: 'fixed', inset: 0 } : undefined}>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
           <Route path="/auth/forgot-password" element={<ForgotPassword />} />
           <Route path="/auth/login" element={<Login />} />
           <Route path="/auth/register" element={<Register />} />
-          <Route path="/blog" element={<Blog />} />
-          <Route path="/blog/:slug" element={<BlogPost />} />
-          <Route path="/contact" element={<Contact />} />
-          <Route path="/projects" element={<Projects />} />
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <Routes>
+                  <Route path="/" element={<Home />} />
+                  <Route path="/about" element={<About />} />
+                  <Route path="/blog" element={<Blog />} />
+                  <Route path="/blog/:slug" element={<BlogPost />} />
+                  <Route path="/contact" element={<Contact />} />
+                  <Route path="/projects" element={<Projects />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                </Routes>
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
-      <Footer />
-      
-      {/* Agentic AI chatbot - standalone and in every page */}
-      <AgenticChatbot 
-        title="Ask Me Anything"
-        placeholder="What would you like to know?"
-        systemPrompt="You are Nova, a friendly AI assistant in a developer's portfolio. Provide helpful, concise responses about the portfolio, projects, web development, and AI. Be warm and encouraging."
-      />
-      
-      {/* Agentic AI orb + chat panel (3D with tool support) */}
+      {!fullscreen && <Footer />}
+
+      {/* Transient toasts (top-right) */}
+      <ToastViewport />
+
+      {/* Proactive one-off guidance card (bottom-left) */}
+      <PageGuide />
+
+      {/* 3D agent orb + chat panel — the single portfolio AI assistant */}
       <AgentOrb />
-      
+
       {/* 3D Cursor Follower - subtle premium effect */}
       <Suspense fallback={null}>
         <CursorFollower />
@@ -78,18 +103,21 @@ function AppContent() {
 function App() {
   return (
     <Router>
-      <SearchProvider>
-        <AuthProvider>
-          <AgentProvider>
-            <ThemeProvider>
-              <AppContent />
-            </ThemeProvider>
-          </AgentProvider>
-        </AuthProvider>
-      </SearchProvider>
+      <NotificationProvider>
+        <ThemeProvider>
+          <PortfolioProvider>
+            <SearchProvider>
+              <AuthProvider>
+                <AgentProvider>
+                  <AppContent />
+                </AgentProvider>
+              </AuthProvider>
+            </SearchProvider>
+          </PortfolioProvider>
+        </ThemeProvider>
+      </NotificationProvider>
     </Router>
   );
 }
 
 export default App;
-

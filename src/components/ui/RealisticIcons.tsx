@@ -61,6 +61,7 @@ export function RocketIcon({ size = 56, className = '', glow = '#8b5cf6' }: Icon
       <rect x="20" y="36" width="24" height="2" fill="#ef4444" />
     </motion.svg>
   );
+}
 
 /* ---------------- AI BRAIN (neural network style) ---------------- */
 export function AIBrainIcon({ size = 56, className = '', glow = '#ec4899' }: IconProps) {
@@ -122,7 +123,6 @@ export function AIBrainIcon({ size = 56, className = '', glow = '#ec4899' }: Ico
       <text x="32" y="36" textAnchor="middle" fontSize="9" fontWeight="bold" fill="#fff">AI</text>
     </motion.svg>
   );
-}
 }
 
 /* ---------------- SPARKLES (4-point stars) ---------------- */
@@ -193,6 +193,13 @@ export function PlanetIcon({ size = 56, className = '', glow = '#06b6d4' }: Icon
         <path d="M30 18 Q40 22 38 30 Q32 28 30 24 Z" fill="#22c55e" opacity="0.85" />
         <path d="M22 38 Q32 36 36 42 Q28 46 22 42 Z" fill="#22c55e" opacity="0.85" />
         <path d="M40 40 Q48 38 48 46 Q44 50 40 46 Z" fill="#22c55e" opacity="0.85" />
+        <ellipse cx="26" cy="20" rx="6" ry="1.5" fill="#fff" opacity="0.4" />
+        <ellipse cx="38" cy="42" rx="7" ry="1.5" fill="#fff" opacity="0.4" />
+      </motion.g>
+      <circle cx="32" cy="32" r="22" fill="none" stroke="#7dd3fc" strokeWidth="0.5" opacity="0.6" />
+    </motion.svg>
+  );
+}
 
 /* ---------------- CODE / TERMINAL ---------------- */
 export function CodeIcon({ size = 56, className = '', glow = '#10b981' }: IconProps) {
@@ -250,13 +257,6 @@ export function MeteorIcon({ size = 56, className = '', glow = '#fb923c' }: Icon
       <path d="M8 50 L48 18" stroke="url(#mtTail)" strokeWidth="6" strokeLinecap="round" />
       <path d="M12 50 L40 26" stroke="url(#mtTail)" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
       <circle cx="50" cy="16" r="8" fill="url(#mtHead)" />
-    </motion.svg>
-  );
-}
-        <ellipse cx="26" cy="20" rx="6" ry="1.5" fill="#fff" opacity="0.4" />
-        <ellipse cx="38" cy="42" rx="7" ry="1.5" fill="#fff" opacity="0.4" />
-      </motion.g>
-      <circle cx="32" cy="32" r="22" fill="none" stroke="#7dd3fc" strokeWidth="0.5" opacity="0.6" />
     </motion.svg>
   );
 }

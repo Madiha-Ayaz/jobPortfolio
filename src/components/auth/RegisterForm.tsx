@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useCreateUserWithEmailAndPassword } from 'react-firebase-hooks/auth';
 import { Auth } from 'firebase/auth'; // Import Auth type
 import { useAuth } from '@/context/AuthContext';
+import PhoneAuthForm from '@/components/auth/PhoneAuthForm';
 
 interface RegisterFormProps {
   auth: Auth; // Expect a non-null Auth object
@@ -15,6 +16,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ auth }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneMode, setPhoneMode] = useState(false);
 
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -65,48 +67,90 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ auth }) => {
 
   return (
     <>
-      <h1 className="text-3xl font-bold text-center mb-6">Register</h1>
-      
+      <h1 className="text-3xl font-bold text-center mb-6" style={{ color: 'var(--text-heading)' }}>
+        {phoneMode ? 'Sign in with phone' : 'Register'}
+      </h1>
+
       {error && <p className="text-red-500 text-center mb-4">{error}</p>}
 
-      <form onSubmit={handleRegister} className="space-y-6">
-        <div>
-          <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-2">Email</label>
-          <input
-            type="email"
-            id="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            className="w-full bg-background border border-border-color text-text px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+      {phoneMode ? (
+        <div className="space-y-4">
+          <PhoneAuthForm
+            auth={auth}
+            onSuccess={() => navigate('/')}
           />
+          <button
+            type="button"
+            onClick={() => {
+              setPhoneMode(false);
+              setError(null);
+            }}
+            className="w-full text-sm underline underline-offset-4 cursor-pointer"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            ← Back to email registration
+          </button>
         </div>
-        <div>
-          <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-2">Password</label>
-          <input
-            type="password"
-            id="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            className="w-full bg-background border border-border-color text-text px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-        </div>
-        <button 
-          type="submit" 
-          className="w-full bg-accent text-white font-bold py-3 rounded-md hover:bg-accent-dark transition-colors disabled:opacity-50"
-          disabled={loading}
-        >
-          {loading ? 'Registering...' : 'Register'}
-        </button>
-      </form>
+      ) : (
+        <>
+          <form onSubmit={handleRegister} className="space-y-6">
+            <div>
+              <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Email</label>
+              <input
+                type="email"
+                id="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-heading)' }}
+              />
+            </div>
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>Password</label>
+              <input
+                type="password"
+                id="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+                style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-heading)' }}
+              />
+            </div>
+            <button 
+              type="submit" 
+              className="w-full font-bold py-3 rounded-md transition-colors disabled:opacity-50"
+              style={{ background: 'var(--accent)', color: 'var(--text-on-accent, #fff)' }}
+              disabled={loading}
+            >
+              {loading ? 'Registering...' : 'Register'}
+            </button>
+          </form>
 
-      <p className="text-center text-sm text-text-secondary mt-8">
-        Already have an account?{' '}
-        <Link to="/auth/login" className="font-medium text-accent hover:underline">
-          Login
-        </Link>
-      </p>
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px" style={{ background: 'var(--border-default)' }} />
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>or</span>
+            <div className="flex-1 h-px" style={{ background: 'var(--border-default)' }} />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setPhoneMode(true)}
+            className="w-full font-bold py-3 rounded-md transition-colors"
+            style={{ background: 'var(--surface)', border: '1px solid var(--border-default)', color: 'var(--text-heading)' }}
+          >
+            Sign up with phone
+          </button>
+
+          <p className="text-center text-sm mt-8" style={{ color: 'var(--text-muted)' }}>
+            Already have an account?{' '}
+            <Link to="/auth/login" className="font-medium hover:underline" style={{ color: 'var(--accent)' }}>
+              Login
+            </Link>
+          </p>
+        </>
+      )}
     </>
   );
 };

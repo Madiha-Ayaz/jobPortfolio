@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTheme } from '@/context/ThemeContext';
 
 interface ContactCard {
   id: string;
@@ -78,10 +79,12 @@ function Card({ card, index }: { card: ContactCard; index: number }) {
 }
 
 export default function ContactInfoCards() {
+  const { t } = useTheme();
+
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-black mb-6 text-heading">
-        Contact Methods
+        {t('contact.formMethods')}
       </h2>
 
       {contactCards.map((card, index) => (
@@ -93,8 +96,8 @@ export default function ContactInfoCards() {
         style={{ background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.12)' }}
       >
         <p className="text-xs text-muted">
-          <span className="font-bold text-brand">Response Time:</span> I typically respond within{' '}
-          <span className="font-bold text-brand">24-48 hours</span>.
+          <span className="font-bold text-brand">{t('contact.formResponseTime')}</span> {t('contact.formResponseDetail')}{' '}
+          <span className="font-bold text-brand">{t('contact.formResponseHours')}</span>.
         </p>
       </div>
 

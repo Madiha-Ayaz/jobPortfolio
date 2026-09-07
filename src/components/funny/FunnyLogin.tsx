@@ -1,7 +1,13 @@
-import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { auth } from '@/lib/firebase';
-import { GoogleAuthProvider, signInWithEmailAndPassword, signInWithPopup } from 'firebase/auth';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { auth, signInWithGoogle as firebaseSignInWithGoogle } from '@/lib/firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Html, Sparkles, ContactShadows } from '@react-three/drei';
+import { EffectComposer, Bloom } from '@react-three/postprocessing';
+import * as THREE from 'three';
+import PhoneAuthForm from '@/components/auth/PhoneAuthForm';
+import { useAuth } from '@/context/AuthContext';
 
 const CORRECT_USER = 'student';
 const CORRECT_PASS = '1234';
@@ -17,18 +23,321 @@ const toasts = [
 
 const randomToast = (count: number) => toasts[Math.min(count - 1, toasts.length - 1)];
 
+/* ════════════════════════════════════════════════════════════════
+   CONTINUOUS 3D SCENE — aurora hub + interactive briefcase
+════════════════════════════════════════════════════════════════ */
+type SceneRefs = {
+  open: React.MutableRefObject<number>;
+  celebrate: React.MutableRefObject<boolean>;
+  allowClick: React.MutableRefObject<boolean>;
+  onOpen: () => void;
+  signedIn: boolean;
+  lowFx: boolean;
+};
+
+function BackgroundAurora({ refs }: { refs: SceneRefs }) {
+  const starRef = useRef<THREE.Points>(null);
+
+  const starPos = useMemo(() => {
+    const count = 450;
+    const a = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const r = 4 + Math.random() * 9;
+      a[i * 3] = Math.cos(theta) * r;
+      a[i * 3 + 1] = Math.sin(theta) * r;
+      a[i * 3 + 2] = -3 + Math.random() * -6;
+    }
+    return a;
+  }, []);
+
+  useFrame((_, delta) => {
+    if (!starRef.current) return;
+    starRef.current.rotation.z += delta * 0.008;
+  });
+
+  return (
+    <group>
+      <points ref={starRef}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" count={starPos.length / 3} array={starPos} itemSize={3} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.05}
+          color="#99f6e4"
+          transparent
+          opacity={0.6}
+          sizeAttenuation
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </points>
+
+      {/* gyro rings behind the briefcase */}
+      <mesh position={[0, -0.6, -2.6]} rotation={[Math.PI / 2.4, 0, 0]}>
+        <torusGeometry args={[2.4, 0.012, 8, 120]} />
+        <meshBasicMaterial color="#2dd4a7" transparent opacity={0.3} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh position={[0, -0.6, -2.6]} rotation={[Math.PI / 1.9, 0, 0.4]}>
+        <torusGeometry args={[2.8, 0.01, 8, 120]} />
+        <meshBasicMaterial color="#8b5cf6" transparent opacity={0.24} blending={THREE.AdditiveBlending} />
+      </mesh>
+
+      {/* nebula glow blobs */}
+      <mesh position={[-6, 3, -7]}>
+        <sphereGeometry args={[4, 16, 16]} />
+        <meshBasicMaterial color="#0d9488" transparent opacity={0.05} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh position={[6, -3, -7]}>
+        <sphereGeometry args={[4.5, 16, 16]} />
+        <meshBasicMaterial color="#7c3aed" transparent opacity={0.05} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+      <mesh position={[4, 4, -8]}>
+        <sphereGeometry args={[3, 16, 16]} />
+        <meshBasicMaterial color="#e879f9" transparent opacity={0.035} depthWrite={false} blending={THREE.AdditiveBlending} />
+      </mesh>
+    </group>
+  );
+}
+
+function LoginCore({ refs }: { refs: SceneRefs }) {
+  const mobile = useThree((s) => s.viewport.width);
+  const scale = Math.max(0.55, Math.min(1, mobile / 7));
+
+  const root = useRef<THREE.Group>(null);
+  const core = useRef<THREE.Mesh>(null);
+  const shell = useRef<THREE.Mesh>(null);
+  const ring1 = useRef<THREE.Mesh>(null);
+  const ring2 = useRef<THREE.Mesh>(null);
+  const ring3 = useRef<THREE.Mesh>(null);
+  const sats = useRef<THREE.Group>(null);
+  const beam = useRef<THREE.Mesh>(null);
+  const scanner = useRef<THREE.Mesh>(null);
+  const halo = useRef<THREE.Mesh>(null);
+  const satRefs = useRef<(THREE.Mesh | null)[]>([]);
+  const [hovered, setHovered] = useState(false);
+
+  useFrame((state, delta) => {
+    const t = state.clock.elapsedTime;
+    const open = refs.open.current;
+    if (!root.current) return;
+
+    root.current.position.y = 0.12 + Math.sin(t * 0.7) * 0.09 - open * 0.1;
+    root.current.rotation.y += delta * (open ? 1.6 : 0.38);
+
+    if (refs.celebrate.current) {
+      root.current.rotation.y += delta * 2.8;
+      root.current.scale.setScalar(1 + Math.sin(t * 6) * 0.04);
+    } else if (hovered && !open) {
+      root.current.scale.setScalar(1.06 + Math.sin(t * 2) * 0.012);
+    } else if (open) {
+      root.current.scale.setScalar(1 + Math.sin(t * 4.5) * 0.02);
+    } else {
+      root.current.scale.setScalar(1 + Math.sin(t * 1.2) * 0.012);
+    }
+
+    if (core.current) {
+      core.current.rotation.x += delta * 0.32;
+      core.current.rotation.z += delta * 0.2;
+    }
+    if (shell.current) {
+      shell.current.rotation.y -= delta * 0.55;
+      shell.current.rotation.x = Math.sin(t * 0.6) * 0.3;
+    }
+    if (ring1.current) ring1.current.rotation.z += delta * (open ? 0.7 : 0.32);
+    if (ring2.current) ring2.current.rotation.x += delta * 0.5;
+    if (ring3.current) ring3.current.rotation.y += delta * 0.46;
+    if (sats.current) sats.current.rotation.y += delta * (open ? 1.15 : 0.72);
+    satRefs.current.forEach((m, i) => {
+      if (!m) return;
+      m.rotation.x += delta * 1.6;
+      m.rotation.y += delta * (0.9 + i * 0.25);
+    });
+
+    if (scanner.current) {
+      scanner.current.scale.setScalar(1 + Math.sin(t * 1.4) * 0.08);
+      const mat = scanner.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.26 + Math.sin(t * 2.2) * 0.14 + open * 0.22;
+    }
+    if (beam.current) {
+      const mat = beam.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = (0.1 + Math.sin(t * 3) * 0.05 + open * 0.24) * scale;
+    }
+    if (halo.current) {
+      halo.current.rotation.z += delta * 0.28;
+      const mat = halo.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = 0.2 + Math.sin(t * 1.1) * 0.08;
+    }
+  });
+
+  const handleClick = () => {
+    if (refs.allowClick.current) refs.onOpen();
+  };
+
+  const teal = '#2dd4a7';
+  const violet = '#8b5cf6';
+  const fuchsia = '#e879f9';
+  const gold = '#f2d98c';
+
+  return (
+    <>
+    <group
+      ref={root}
+      position={[0, 0.12, 0]}
+      onClick={handleClick}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
+      <group scale={scale}>
+        {/* data beam */}
+        <mesh ref={beam} position={[0, 1.3, 0]}>
+          <cylinderGeometry args={[0.04, 0.1, 2.8, 16, 1, true]} />
+          <meshBasicMaterial
+            color="#22d3ee"
+            transparent
+            opacity={0.12}
+            depthWrite={false}
+            side={THREE.DoubleSide}
+            blending={THREE.AdditiveBlending}
+          />
+        </mesh>
+
+        {/* core crystal + glow */}
+        <pointLight position={[0, 0.3, 0.5]} color="#2dd4a7" intensity={10} distance={3.4} decay={2} />
+        <mesh ref={core}>
+          <icosahedronGeometry args={[0.52, 0]} />
+          <meshStandardMaterial
+            color="#0e3a33"
+            metalness={0.85}
+            roughness={0.18}
+            emissive="#14b8a6"
+            emissiveIntensity={0.4}
+          />
+        </mesh>
+
+        {/* halo ring rising off the core */}
+        <mesh ref={halo} position={[0, 0.05, 0]} rotation={[Math.PI / 2.1, 0.35, 0]}>
+          <torusGeometry args={[0.68, 0.008, 8, 72]} />
+          <meshBasicMaterial color={fuchsia} transparent opacity={0.22} blending={THREE.AdditiveBlending} />
+        </mesh>
+
+        {/* inner golden heart */}
+        <mesh rotation={[0.4, 0.8, 0.2]}>
+          <octahedronGeometry args={[0.26, 0]} />
+          <meshStandardMaterial
+            color={gold}
+            metalness={0.9}
+            roughness={0.2}
+            emissive={gold}
+            emissiveIntensity={0.45}
+          />
+        </mesh>
+
+        {/* wireframe neural shell */}
+        <mesh ref={shell} scale={1.25}>
+          <icosahedronGeometry args={[0.52, 1]} />
+          <meshBasicMaterial color={teal} wireframe transparent opacity={0.24} blending={THREE.AdditiveBlending} />
+        </mesh>
+
+        {/* orbital gyro rings */}
+        <mesh ref={ring1} rotation={[Math.PI / 2.4, 0, 0]}>
+          <torusGeometry args={[1.05, 0.012, 10, 90]} />
+          <meshBasicMaterial color={teal} transparent opacity={0.55} blending={THREE.AdditiveBlending} />
+        </mesh>
+        <mesh ref={ring2} rotation={[Math.PI / 2.2, 0.5, 0]}>
+          <torusGeometry args={[1.25, 0.01, 10, 90]} />
+          <meshBasicMaterial color={violet} transparent opacity={0.4} blending={THREE.AdditiveBlending} />
+        </mesh>
+        <mesh ref={ring3} rotation={[Math.PI / 2.6, -0.5, 0.6]}>
+          <torusGeometry args={[0.85, 0.008, 10, 90]} />
+          <meshBasicMaterial color={fuchsia} transparent opacity={0.45} blending={THREE.AdditiveBlending} />
+        </mesh>
+
+        {/* orbiting satellites (self-spinning crystals) */}
+        <group ref={sats}>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <mesh
+              key={i}
+              ref={(el) => {
+                satRefs.current[i] = el;
+              }}
+              position={[Math.cos((i / 5) * Math.PI * 2) * 1.3, Math.sin((i / 5) * Math.PI * 2) * 1.3, 0]}
+            >
+              <octahedronGeometry args={[0.08, 0]} />
+              <meshStandardMaterial
+                color={i % 2 ? fuchsia : teal}
+                emissive={i % 2 ? fuchsia : teal}
+                emissiveIntensity={0.9}
+                metalness={0.7}
+                roughness={0.25}
+              />
+            </mesh>
+          ))}
+        </group>
+
+        {/* ground scanner ring */}
+        <mesh ref={scanner} position={[0, -0.74, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <torusGeometry args={[0.68, 0.018, 10, 80]} />
+          <meshBasicMaterial color={teal} transparent opacity={0.3} blending={THREE.AdditiveBlending} />
+        </mesh>
+
+        <Sparkles
+          count={refs.lowFx ? 12 : 26}
+          scale={[3, 2.2, 3]}
+          size={2.2}
+          speed={0.4}
+          color="#6ee7c8"
+          opacity={0.8}
+        />
+      </group>
+      </group>
+      <Html position={[0, 1.22, 0]} center distanceFactor={6.2} zIndexRange={[45, 0]} style={{ pointerEvents: 'none' }}>
+        <div className="core-label" data-out={refs.signedIn ? '1' : '0'}>
+          {refs.signedIn ? 'Sign Out' : 'Sign In'}
+          <span className="core-label-sub">tap the crystal</span>
+        </div>
+      </Html>
+    </>
+  );
+}
+
+function LoginScene({ refs }: { refs: SceneRefs }) {
+  return (
+    <>
+      <ambientLight intensity={0.5} color={0xcaf7e8} />
+      <directionalLight position={[5, 8, 6]} intensity={1.2} color={0xe6fff5} />
+      <pointLight position={[-5, -3, 4]} intensity={0.9} color={0x0d9488} />
+      <pointLight position={[5, 2, 3]} intensity={0.8} color={0x7c3aed} />
+
+      <BackgroundAurora refs={refs} />
+      <LoginCore refs={refs} />
+      <ContactShadows position={[0, -1.55, 0]} opacity={0.45} scale={9} blur={2.6} far={3} color="#021512" />
+
+      {!refs.lowFx && (
+        <EffectComposer>
+          <Bloom intensity={0.5} luminanceThreshold={0.22} luminanceSmoothing={0.6} mipmapBlur />
+        </EffectComposer>
+      )}
+    </>
+  );
+}
+
+/* ════════════════════════════════════════════════════════════════
+   FUNNY LOGIN PAGE
+════════════════════════════════════════════════════════════════ */
 const FunnyLogin: React.FC = () => {
   const appRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const charCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const bagCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const openRef = useRef(0);
+  const celebrateRef = useRef(false);
+  const allowClickRef = useRef(true);
 
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [bagOpen, setBagOpen] = useState(false);
-  const [formVisible, setFormVisible] = useState(false);
-  const [hintVisible, setHintVisible] = useState(true);
+  const { user } = useAuth();
+  const signedIn = !!user;
   const [errorMessage, setErrorMessage] = useState('');
+  const [hintVisible, setHintVisible] = useState(true);
   const [loading, setLoading] = useState(false);
   const [speechText, setSpeechText] = useState('');
   const [speechVisible, setSpeechVisible] = useState(false);
@@ -36,22 +345,47 @@ const FunnyLogin: React.FC = () => {
   const [toastVisible, setToastVisible] = useState(false);
   const [wrongCount, setWrongCount] = useState(0);
   const [escapeVisible, setEscapeVisible] = useState(false);
-  const [escapePosition, setEscapePosition] = useState({ left: 'calc(50% - 60px)', top: '260px' });
+  const [phoneOpen, setPhoneOpen] = useState(false);
+  const [escapePosition, setEscapePosition] = useState({ left: 'calc(50% - 60px)', top: '56%' });
   const [loginLabel, setLoginLabel] = useState('Sign In');
   const [successVisible, setSuccessVisible] = useState(false);
   const [loginSuccess, setLoginSuccess] = useState(false);
-  const [charState, setCharState] = useState<'idle' | 'squint' | 'happy'>('idle');
+  const [lowFx, setLowFx] = useState(false);
 
   const wrongCountRef = useRef(0);
-  const bagFlapRef = useRef(0);
-  const bagFlapTargetRef = useRef(0);
-  const tickRef = useRef(0);
-  const animFrameRef = useRef<number | null>(null);
-
   const navigate = useNavigate();
+  const [canvasReady, setCanvasReady] = useState(false);
 
   useEffect(() => {
-    setTimeout(() => setSpeech('Good morning. Click the backpack. 💼', 3500), 1200);
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia &&
+      (window.matchMedia('(pointer: coarse)').matches ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches)
+    ) {
+      setLowFx(true);
+    }
+    setTimeout(() => setSpeech('Good morning. Tap the core to unlock. 💎', 3500), 1200);
+    // Only mount the 3D canvas after the stage has a real, non-zero size.
+    // Mounting it at 0×0 makes the framebuffer incomplete and spams
+    // GL_INVALID_FRAMEBUFFER_OPERATION in the console.
+    const checkReady = () => {
+      const el = stageRef.current;
+      const ok = el && el.clientWidth > 0 && el.clientHeight > 0;
+      if (ok) setCanvasReady(true);
+    };
+    let raf = requestAnimationFrame(checkReady);
+    const onResize = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(checkReady);
+    };
+    window.addEventListener('resize', onResize);
+    const t = setTimeout(() => setCanvasReady(true), 700);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(t);
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
 
   const setSpeech = useCallback((msg: string, duration = 2000) => {
@@ -76,56 +410,41 @@ const FunnyLogin: React.FC = () => {
     const rect = stage.getBoundingClientRect();
     const margin = 80;
     const x = margin + Math.random() * (rect.width - margin * 2 - 120);
-    const y = margin + Math.random() * (rect.height - margin * 2 - 40);
+    const y = margin + Math.random() * (rect.height - margin * 2 - 44);
     setEscapePosition({ left: `${x}px`, top: `${y}px` });
   }, []);
 
-  const openBag = () => {
-    if (bagOpen) return;
-    setBagOpen(true);
-    bagFlapTargetRef.current = 1;
-    setHintVisible(false);
-    setSpeech('Welcome back, student! 🎒', 3000);
-    window.setTimeout(() => setFormVisible(true), 500);
-  };
-
   const validate = () => username.trim() === CORRECT_USER && password === CORRECT_PASS;
 
-  const wrongFlow = () => {
+  const wrongFlow = useCallback(() => {
     setWrongCount((count) => {
       const next = count + 1;
       wrongCountRef.current = next;
       return next;
     });
     setSpeech('Invalid credentials... 🔒', 2000);
-    setCharState('squint');
-    window.setTimeout(() => setCharState('idle'), 1000);
     showToast(randomToast(wrongCountRef.current));
 
     if (wrongCountRef.current >= 2) {
-      if (!escapeVisible) {
-        setEscapeVisible(true);
-      }
-      moveEscapeBtn();
+      if (!escapeVisible) setEscapeVisible(true);
+      setTimeout(moveEscapeBtn, 50);
     }
-  };
+  }, [escapeVisible, moveEscapeBtn, setSpeech, showToast]);
 
-  const successFlow = () => {
-    setCharState('happy');
+  const successFlow = useCallback(() => {
+    celebrateRef.current = true;
     setSpeech('Access granted! Welcome back, student! 🎉', 3000);
     setLoginLabel('Verified ✓');
     setLoginSuccess(true);
     window.setTimeout(() => {
-      setFormVisible(false);
-      bagFlapTargetRef.current = 0;
-      setBagOpen(false);
+      openRef.current = 0;
     }, 1600);
     window.setTimeout(() => {
-      launchConfetti();
+      launchConfetti(appRef.current);
       setSuccessVisible(true);
     }, 2400);
-    window.setTimeout(() => navigate('/'), 5000);
-  };
+    window.setTimeout(() => navigate('/'), 5200);
+  }, [navigate, setSpeech]);
 
   const signInWithGoogle = async () => {
     if (loading || loginSuccess) return;
@@ -137,8 +456,12 @@ const FunnyLogin: React.FC = () => {
 
     setLoading(true);
     try {
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
+      const errorMessage = await firebaseSignInWithGoogle();
+      if (errorMessage) {
+        setErrorMessage(errorMessage);
+        wrongFlow();
+        return;
+      }
       successFlow();
     } catch (error) {
       setErrorMessage('Google sign-in failed. Please try again.');
@@ -179,584 +502,231 @@ const FunnyLogin: React.FC = () => {
     }
   };
 
-  const launchConfetti = () => {
-    const colors = ['#3b82f6', '#c9a84c', '#22c55e', '#a78bfa', '#f87171', '#60a5fa', '#fbbf24'];
-    const container = appRef.current;
-    if (!container) return;
-    for (let i = 0; i < 70; i += 1) {
-      window.setTimeout(() => {
-        const d = document.createElement('div');
-        d.className = 'conf';
-        d.style.setProperty('--d', `${1.2 + Math.random() * 1.5}s`);
-        d.style.setProperty('--dl', `${Math.random() * 0.4}s`);
-        d.style.left = `${Math.random() * 100}%`;
-        d.style.top = '0';
-        d.style.background = colors[i % colors.length];
-        d.style.width = `${6 + Math.random() * 8}px`;
-        d.style.height = `${6 + Math.random() * 8}px`;
-        d.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-        container.appendChild(d);
-        window.setTimeout(() => d.remove(), 3000);
-      }, i * 35);
-    }
-  };
+  // Tap the crystal: signed in → sign out; otherwise → submit the sign-in form.
+  const coreTap = useCallback(() => {
+    if (!allowClickRef.current) return;
+    allowClickRef.current = false;
+    window.setTimeout(() => {
+      allowClickRef.current = true;
+    }, 1200);
 
-  const handleStageMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!escapeVisible) return;
-    const escapeX = parseFloat(escapePosition.left);
-    const escapeY = parseFloat(escapePosition.top);
-    const mouseX = event.clientX;
-    const mouseY = event.clientY;
-    const dx = mouseX - (escapeX + 60);
-    const dy = mouseY - (escapeY + 20);
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 120) {
-      moveEscapeBtn();
+    if (signedIn) {
+      if (!auth) {
+        setSpeech('Authentication is not configured yet.', 2400);
+        return;
+      }
+      signOut(auth)
+        .then(() => setSpeech('Signed out. Come back soon. 👋', 3000))
+        .catch(() => setSpeech('Could not sign out right now.', 2000));
+      return;
     }
-  };
+    if (loginSuccess || loading) return;
+    setSpeech('Verifying your access...', 1200);
+    doLogin();
+  }, [signedIn, loginSuccess, loading, setSpeech]);
 
   useEffect(() => {
     const keyHandler = (event: KeyboardEvent) => {
-      if (event.key === 'Enter' && bagOpen) {
+      if (event.key === 'Enter') {
         doLogin();
       }
     };
     window.addEventListener('keydown', keyHandler);
     return () => window.removeEventListener('keydown', keyHandler);
-  }, [bagOpen]);
+  });
 
-  useLayoutEffect(() => {
-    const charCanvas = charCanvasRef.current;
-    const bagCanvas = bagCanvasRef.current;
-    if (!charCanvas || !bagCanvas) return;
-    const cctx = charCanvas.getContext('2d');
-    const bctx = bagCanvas.getContext('2d');
-    if (!cctx || !bctx) return;
+  const handleStageMouseMove = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!escapeVisible) return;
+    const escapeX = parseFloat(escapePosition.left);
+    const escapeY = parseFloat(escapePosition.top);
+    const dx = event.clientX - (escapeX + 60);
+    const dy = event.clientY - (escapeY + 20);
+    if (Math.sqrt(dx * dx + dy * dy) < 120) {
+      moveEscapeBtn();
+    }
+  };
 
-    const draw3DRect = (
-      ctx: CanvasRenderingContext2D,
-      x: number,
-      y: number,
-      w: number,
-      h: number,
-      mainC: string,
-      darkC: string,
-      lightC: string,
-    ) => {
-      ctx.fillStyle = darkC;
-      ctx.beginPath();
-      ctx.roundRect(x + 4, y + 4, w, h, 4);
-      ctx.fill();
-      ctx.fillStyle = mainC;
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, 4);
-      ctx.fill();
-      ctx.fillStyle = lightC;
-      ctx.globalAlpha = 0.25;
-      ctx.fillRect(x + 2, y + 2, w * 0.4, h * 0.6);
-      ctx.globalAlpha = 1;
-    };
-
-    const drawShoe = (
-      ctx: CanvasRenderingContext2D,
-      x: number,
-      y: number,
-      w: number,
-      h: number,
-      c: string,
-    ) => {
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(x + w / 2 + 4, y + h + 3, w / 2, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = c;
-      ctx.beginPath();
-      ctx.roundRect(x, y, w, h, { upperLeft: 3, upperRight: 3, lowerRight: 8, lowerLeft: 4 });
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.06)';
-      ctx.fillRect(x + 2, y + 2, w - 4, 4);
-    };
-
-    const drawEye = (
-      ctx: CanvasRenderingContext2D,
-      cx: number,
-      cy: number,
-      scaleY: number,
-      state: 'idle' | 'squint' | 'happy',
-    ) => {
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.scale(1, scaleY);
-      ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 9, 9, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#1e3a8a';
-      ctx.beginPath();
-      ctx.ellipse(1, 0, 6, 6, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#0f172a';
-      ctx.beginPath();
-      ctx.ellipse(1, 0, 3, 3, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.beginPath();
-      ctx.ellipse(2, -2, 2, 2, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    };
-
-    const drawHead = (
-      ctx: CanvasRenderingContext2D,
-      cx: number,
-      cy: number,
-      blinkT: number,
-      state: 'idle' | 'squint' | 'happy',
-    ) => {
-      ctx.fillStyle = 'rgba(0,0,0,0.2)';
-      ctx.beginPath();
-      ctx.ellipse(cx + 4, cy + 4, 34, 38, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#f0c090';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, 34, 38, 0, 0, Math.PI * 2);
-      ctx.fill();
-      const grad = ctx.createLinearGradient(cx - 34, cy, cx + 34, cy);
-      grad.addColorStop(0, 'rgba(0,0,0,0.12)');
-      grad.addColorStop(0.5, 'rgba(255,255,255,0.08)');
-      grad.addColorStop(1, 'rgba(0,0,0,0.1)');
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy, 34, 38, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#3d2000';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - 22, 34, 22, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.roundRect(cx - 34, cy - 38, 68, 28, { upperLeft: 34, upperRight: 34, lowerLeft: 0, lowerRight: 0 });
-      ctx.fill();
-      ctx.fillStyle = '#e8b07a';
-      ctx.beginPath();
-      ctx.ellipse(cx - 34, cy, 8, 11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(cx + 34, cy, 8, 11, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#3d2000';
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(cx - 20, cy - 14);
-      ctx.quadraticCurveTo(cx - 12, cy - 18, cx - 4, cy - 14);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx + 4, cy - 14);
-      ctx.quadraticCurveTo(cx + 12, cy - 18, cx + 20, cy - 14);
-      ctx.stroke();
-      if (state === 'happy') {
-        ctx.strokeStyle = '#3d2000';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.moveTo(cx - 22, cy - 14);
-        ctx.quadraticCurveTo(cx - 14, cy - 22, cx - 5, cy - 15);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(cx + 5, cy - 15);
-        ctx.quadraticCurveTo(cx + 14, cy - 22, cx + 22, cy - 14);
-        ctx.stroke();
-      }
-      const eyeScaleY = state === 'squint' ? 0.3 : 1 - blinkT * 0.95;
-      drawEye(ctx, cx - 14, cy - 4, eyeScaleY, state);
-      drawEye(ctx, cx + 14, cy - 4, eyeScaleY, state);
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 6, 4, 5, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(0,0,0,0.08)';
-      ctx.beginPath();
-      ctx.ellipse(cx - 4, cy + 8, 3, 2, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(cx + 4, cy + 8, 3, 2, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.strokeStyle = '#c0704a';
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      if (state === 'happy') {
-        ctx.beginPath();
-        ctx.moveTo(cx - 14, cy + 18);
-        ctx.quadraticCurveTo(cx, cy + 28, cx + 14, cy + 18);
-        ctx.stroke();
-        ctx.fillStyle = 'rgba(255,100,100,0.3)';
-        ctx.beginPath();
-        ctx.ellipse(cx - 22, cy + 16, 9, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.beginPath();
-        ctx.ellipse(cx + 22, cy + 16, 9, 6, 0, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.beginPath();
-        ctx.moveTo(cx - 12, cy + 20);
-        ctx.quadraticCurveTo(cx, cy + 25, cx + 12, cy + 20);
-        ctx.stroke();
-      }
-      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.roundRect(cx - 24, cy - 10, 20, 14, 5);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.roundRect(cx + 4, cy - 10, 20, 14, 5);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx - 4, cy - 5);
-      ctx.lineTo(cx + 4, cy - 5);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx - 24, cy - 5);
-      ctx.lineTo(cx - 30, cy - 8);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx + 24, cy - 5);
-      ctx.lineTo(cx + 30, cy - 8);
-      ctx.stroke();
-    };
-
-    const drawArm = (
-      ctx: CanvasRenderingContext2D,
-      x: number,
-      y: number,
-      happy: boolean,
-      t: number,
-      swing: number,
-      right: boolean,
-    ) => {
-      const rotDir = right ? 1 : -1;
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(swing * 0.02 + rotDir * (happy ? Math.sin(t * 0.15) * 0.3 : 0));
-      ctx.fillStyle = '#1d4ed8';
-      ctx.beginPath();
-      ctx.roundRect(-10, 0, 20, 55, 8);
-      ctx.fill();
-      ctx.fillStyle = '#1e3a8a';
-      ctx.fillRect(-10, 0, 6, 55);
-      ctx.fillStyle = '#e2a87a';
-      ctx.beginPath();
-      ctx.roundRect(-12, 52, 22, 20, 9);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(0,0,0,0.1)';
-      ctx.fillRect(-12, 52, 8, 20);
-      ctx.restore();
-    };
-
-    const drawChar = (t: number) => {
-      cctx.clearRect(0, 0, 200, 360);
-      const breathY = Math.sin(t * 0.04) * 2.5;
-      const blinkT = t % 180 < 8 ? Math.max(0, 1 - Math.abs((t % 180) - 4) / 4) : 0;
-      cctx.save();
-      cctx.beginPath();
-      cctx.ellipse(100, 348, 50, 10, 0, 0, Math.PI * 2);
-      cctx.fillStyle = 'rgba(0,0,0,0.35)';
-      cctx.fill();
-      cctx.restore();
-      const by = breathY + (charState === 'happy' ? Math.sin(t * 0.15) * 6 : 0);
-      cctx.save();
-      cctx.translate(0, by);
-      drawShoe(cctx, 72, 330, 32, 14, '#1e293b');
-      drawShoe(cctx, 112, 330, 32, 14, '#1e293b');
-      draw3DRect(cctx, 78, 245, 22, 88, '#334155', '#1e293b', '#475569');
-      draw3DRect(cctx, 112, 245, 22, 88, '#334155', '#1e293b', '#475569');
-      cctx.fillStyle = '#0f172a';
-      cctx.beginPath();
-      cctx.roundRect(70, 238, 72, 14, 4);
-      cctx.fill();
-      cctx.fillStyle = '#c9a84c';
-      cctx.beginPath();
-      cctx.roundRect(95, 240, 22, 10, 3);
-      cctx.fill();
-      cctx.fillStyle = '#fbbf24';
-      cctx.beginPath();
-      cctx.roundRect(100, 242, 12, 6, 2);
-      cctx.fill();
-      draw3DRect(cctx, 68, 155, 76, 90, '#1d4ed8', '#1e3a8a', '#3b82f6');
-      cctx.fillStyle = '#1e3a8a';
-      cctx.beginPath();
-      cctx.moveTo(106, 158);
-      cctx.lineTo(94, 190);
-      cctx.lineTo(100, 190);
-      cctx.lineTo(106, 165);
-      cctx.fill();
-      cctx.beginPath();
-      cctx.moveTo(106, 158);
-      cctx.lineTo(118, 190);
-      cctx.lineTo(112, 190);
-      cctx.lineTo(106, 165);
-      cctx.fill();
-      cctx.fillStyle = '#c9a84c';
-      cctx.beginPath();
-      cctx.moveTo(102, 168);
-      cctx.lineTo(110, 168);
-      cctx.lineTo(112, 215);
-      cctx.lineTo(106, 222);
-      cctx.lineTo(100, 215);
-      cctx.fill();
-      cctx.fillStyle = 'rgba(255,255,255,0.1)';
-      cctx.beginPath();
-      cctx.roundRect(72, 175, 18, 14, 3);
-      cctx.fill();
-      cctx.fillStyle = '#e2e8f0';
-      cctx.fillRect(76, 173, 10, 4);
-      const armSwing = Math.sin(t * 0.03) * 4;
-      drawArm(cctx, 144, 168, charState === 'happy', t, armSwing, true);
-      drawArm(cctx, 68, 168, charState === 'happy', t, -armSwing, false);
-      cctx.fillStyle = '#e2a87a';
-      cctx.beginPath();
-      cctx.roundRect(98, 138, 16, 22, 5);
-      cctx.fill();
-      cctx.fillStyle = 'rgba(0,0,0,0.15)';
-      cctx.fillRect(98, 138, 6, 22);
-      drawHead(cctx, 106, 110, blinkT, charState);
-      cctx.restore();
-    };
-
-    const drawBag = (t: number) => {
-      bctx.clearRect(0, 0, 160, 130);
-      bagFlapRef.current += (bagFlapTargetRef.current - bagFlapRef.current) * 0.08;
-      const idle = Math.sin(t * 0.04) * 1.5;
-      bctx.save();
-      bctx.translate(0, idle);
-      bctx.fillStyle = 'rgba(0,0,0,0.25)';
-      bctx.beginPath();
-      bctx.ellipse(80, 122, 55, 10, 0, 0, Math.PI * 2);
-      bctx.fill();
-      bctx.fillStyle = '#1e3a8a';
-      bctx.beginPath();
-      bctx.roundRect(14, 28, 124, 84, 8);
-      bctx.fill();
-      bctx.fillStyle = '#1d4ed8';
-      bctx.beginPath();
-      bctx.roundRect(10, 24, 120, 84, 8);
-      bctx.fill();
-      const bodyGrad = bctx.createLinearGradient(10, 24, 130, 24);
-      bodyGrad.addColorStop(0, 'rgba(255,255,255,0.12)');
-      bodyGrad.addColorStop(0.5, 'rgba(255,255,255,0.04)');
-      bodyGrad.addColorStop(1, 'rgba(0,0,0,0.1)');
-      bctx.fillStyle = bodyGrad;
-      bctx.beginPath();
-      bctx.roundRect(10, 24, 120, 84, 8);
-      bctx.fill();
-      bctx.strokeStyle = '#c9a84c';
-      bctx.lineWidth = 2;
-      bctx.beginPath();
-      bctx.roundRect(10, 24, 120, 84, 8);
-      bctx.stroke();
-      bctx.strokeStyle = 'rgba(201,168,76,0.4)';
-      bctx.lineWidth = 1;
-      bctx.beginPath();
-      bctx.moveTo(10, 58);
-      bctx.lineTo(130, 58);
-      bctx.stroke();
-      bctx.fillStyle = '#c9a84c';
-      bctx.beginPath();
-      bctx.roundRect(62, 50, 16, 16, 4);
-      bctx.fill();
-      bctx.fillStyle = '#fbbf24';
-      bctx.beginPath();
-      bctx.roundRect(66, 54, 8, 8, 2);
-      bctx.fill();
-      bctx.fillStyle = 'rgba(0,0,0,0.4)';
-      bctx.beginPath();
-      bctx.ellipse(70, 57, 2.5, 2.5, 0, 0, Math.PI * 2);
-      bctx.fill();
-      bctx.fillRect(69, 58, 3, 4);
-      bctx.fillStyle = '#c9a84c';
-      bctx.beginPath();
-      bctx.roundRect(20, 54, 10, 8, 2);
-      bctx.fill();
-      bctx.beginPath();
-      bctx.roundRect(110, 54, 10, 8, 2);
-      bctx.fill();
-      bctx.strokeStyle = '#c9a84c';
-      bctx.lineWidth = 3;
-      bctx.lineCap = 'round';
-      bctx.beginPath();
-      bctx.moveTo(52, 24);
-      bctx.quadraticCurveTo(52, 8, 70, 8);
-      bctx.quadraticCurveTo(88, 8, 88, 24);
-      bctx.stroke();
-      bctx.strokeStyle = '#3b82f6';
-      bctx.lineWidth = 6;
-      bctx.beginPath();
-      bctx.moveTo(58, 14);
-      bctx.lineTo(82, 14);
-      bctx.stroke();
-      bctx.strokeStyle = '#c9a84c';
-      bctx.lineWidth = 2;
-      bctx.beginPath();
-      bctx.moveTo(58, 14);
-      bctx.lineTo(82, 14);
-      bctx.stroke();
-      bctx.fillStyle = 'rgba(255,255,255,0.06)';
-      bctx.beginPath();
-      bctx.roundRect(20, 68, 36, 32, 4);
-      bctx.fill();
-      bctx.beginPath();
-      bctx.roundRect(84, 68, 36, 32, 4);
-      bctx.fill();
-
-      if (bagFlapRef.current > 0.01) {
-        bctx.save();
-        bctx.translate(70, 24);
-        bctx.rotate(-bagFlapRef.current * (Math.PI / 3));
-        bctx.fillStyle = '#1d4ed8';
-        bctx.beginPath();
-        bctx.roundRect(-60, -34, 120, 36, { upperLeft: 8, upperRight: 8, lowerLeft: 0, lowerRight: 0 });
-        bctx.fill();
-        const lidGrad = bctx.createLinearGradient(-60, -34, 60, -34);
-        lidGrad.addColorStop(0, 'rgba(255,255,255,0.15)');
-        lidGrad.addColorStop(1, 'rgba(0,0,0,0.1)');
-        bctx.fillStyle = lidGrad;
-        bctx.beginPath();
-        bctx.roundRect(-60, -34, 120, 36, { upperLeft: 8, upperRight: 8, lowerLeft: 0, lowerRight: 0 });
-        bctx.fill();
-        bctx.strokeStyle = '#c9a84c';
-        bctx.lineWidth = 2;
-        bctx.beginPath();
-        bctx.roundRect(-60, -34, 120, 36, { upperLeft: 8, upperRight: 8, lowerLeft: 0, lowerRight: 0 });
-        bctx.stroke();
-        if (bagFlapRef.current > 0.3) {
-          const a = Math.min(1, (bagFlapRef.current - 0.3) / 0.5);
-          bctx.fillStyle = `rgba(59,130,246,${0.15 * a})`;
-          bctx.beginPath();
-          bctx.roundRect(-58, 0, 116, 30, { lowerLeft: 0, lowerRight: 0 });
-          bctx.fill();
-        }
-        bctx.restore();
-      }
-      bctx.restore();
-    };
-
-    const loop = () => {
-      tickRef.current += 1;
-      drawChar(tickRef.current);
-      drawBag(tickRef.current);
-      animFrameRef.current = requestAnimationFrame(loop);
-    };
-    loop();
-    return () => {
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    };
-  }, [charState]);
+  const sceneRefs: SceneRefs = {
+    open: openRef,
+    celebrate: celebrateRef,
+    allowClick: allowClickRef,
+    onOpen: coreTap,
+    signedIn,
+    lowFx,
+  };
 
   return (
     <div ref={appRef} className="login-scene-root">
-      <div id="app">
-        <div id="bg-grid" />
-        <div className="orb orb1" />
-        <div className="orb orb2" />
-        <div className="orb orb3" />
+      <div id="app" ref={stageRef} onMouseMove={handleStageMouseMove}>
+        <div className="login-stage">
+        {/* ── continuous 3D scene (mounts only once the stage has a real size) ── */}
+        {canvasReady && (
+        <Canvas
+          className="scene-canvas"
+          camera={{ position: [0, 0.2, 6], fov: 55, near: 0.1, far: 100 }}
+          gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
+          dpr={lowFx ? [1, 1] : [1, 1.5]}
+          style={{ position: 'absolute', inset: 0 }}
+        >
+          <LoginScene refs={sceneRefs} />
+        </Canvas>
+        )}
 
-        <div id="stage" ref={stageRef} onMouseMove={handleStageMouseMove}>
-          <div id="floor">
-            <div className="floor-line" style={{ bottom: '40px' }} />
-            <div className="floor-line" style={{ bottom: '80px', opacity: 0.5 }} />
-            <div className="floor-line" style={{ bottom: '120px', opacity: 0.25 }} />
-          </div>
+        {/* ── vignette for the HUD ── */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background:
+              'radial-gradient(ellipse 90% 90% at 50% 45%, rgba(2,7,10,0) 55%, rgba(2,7,10,0.62) 100%)',
+          }}
+        />
 
-          <canvas id="char-canvas" ref={charCanvasRef} width={200} height={360} />
-
-          <div
-            id="briefcase-wrap"
-            role="button"
-            tabIndex={0}
-            onClick={openBag}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') openBag();
-            }}
-          >
-            <canvas id="bag-canvas" ref={bagCanvasRef} width={160} height={130} />
-          </div>
-
-          {hintVisible && <div id="bag-hint">Click to open</div>}
-
-          <div id="speech" className={speechVisible ? 'show' : ''}>
-            {speechText}
-          </div>
-
-          <div id="form-panel" className={formVisible ? 'visible' : ''}>
-            <div className="glass-card">
-              <div className="card-header">
-                <div className="card-logo">S</div>
-                <div>
-                  <div className="card-title">Campus Portal</div>
-                  <div className="card-sub">Student access with personality</div>
-                </div>
-              </div>
-              <div className="field-group">
-                <label className="field-label" htmlFor="username">Email address</label>
-                <input
-                  className="field-input"
-                  id="username"
-                  type="email"
-                  placeholder="student@example.com"
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                />
-              </div>
-              <div className="field-group">
-                <label className="field-label" htmlFor="password">Password</label>
-                <input
-                  className="field-input"
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </div>
-              <div className="hint-row">
-                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                  <input type="checkbox" style={{ accentColor: '#3b82f6' }} />
-                  <span className="hint-text">Keep me signed in</span>
-                </label>
-                <span className="hint-link">Forgot password?</span>
-              </div>
-              {errorMessage && <div id="error-msg">{errorMessage}</div>}
-              <button
-                id="login-btn"
-                type="button"
-                onClick={doLogin}
-                disabled={escapeVisible || loginSuccess || loading}
-                style={{ display: escapeVisible || loginSuccess ? 'none' : 'block' }}
-              >
-                {loading ? 'Signing in...' : loginLabel}
-              </button>
-              <button
-                id="google-btn"
-                type="button"
-                onClick={signInWithGoogle}
-                disabled={loading || loginSuccess}
-              >
-                Continue with Google
-              </button>
-            </div>
-          </div>
-
-          <button
-            id="escape-btn"
-            type="button"
-            onMouseEnter={moveEscapeBtn}
-            onClick={moveEscapeBtn}
-            style={{ display: escapeVisible ? 'block' : 'none', left: escapePosition.left, top: escapePosition.top }}
-          >
-            Sign In →
-          </button>
+        {/* ── header chip ── */}
+        <div className="portal-chip">
+          <span className="portal-chip-dot" />
+          <span>Student Portal</span>
         </div>
 
+        {/* ── speech bubble ── */}
+        <div id="speech" className={speechVisible ? 'show' : ''}>
+          {speechText}
+        </div>
+
+        {/* ── hint under the core ── */}
+        {hintVisible && (
+          <div id="bag-hint">
+            {signedIn ? 'Tap the crystal to sign out' : 'Fill the form, then tap the crystal to sign in'}
+          </div>
+        )}
+        </div>
+
+        {/* ── permanent auth panel (separate from the 3D scene) ── */}
+        <div className="login-formside">
+          <div className="glass-card">
+            <div className="card-header">
+              <div className="card-logo">S</div>
+              <div>
+                <div className="card-title">Campus Portal</div>
+                <div className="card-sub">Student access with personality</div>
+              </div>
+            </div>
+            {signedIn && (
+              <div id="signed-in-banner">
+                <span className="signed-in-dot" />
+                Signed in as {user?.email || 'student'} — tap the crystal to sign out.
+              </div>
+            )}
+            {phoneOpen && auth ? (
+              <>
+                <PhoneAuthForm
+                  auth={auth}
+                  onSuccess={() => {
+                    setPhoneOpen(false);
+                    successFlow();
+                  }}
+                />
+                <button
+                  id="google-btn"
+                  type="button"
+                  onClick={() => {
+                    setPhoneOpen(false);
+                    setErrorMessage('');
+                  }}
+                >
+                  ← Back to email login
+                </button>
+              </>
+            ) : (
+              <>
+                <div className="field-group">
+                  <label className="field-label" htmlFor="username">Email address</label>
+                  <input
+                    className="field-input"
+                    id="username"
+                    type="email"
+                    placeholder="student@example.com"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                  />
+                </div>
+                <div className="field-group">
+                  <label className="field-label" htmlFor="password">Password</label>
+                  <input
+                    className="field-input"
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                  />
+                </div>
+                <div className="hint-row">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                    <input type="checkbox" style={{ accentColor: '#2dd4a7' }} />
+                    <span className="hint-text">Keep me signed in</span>
+                  </label>
+                  <span className="hint-link">Forgot password?</span>
+                </div>
+                {errorMessage && <div id="error-msg">{errorMessage}</div>}
+                <button
+                  id="login-btn"
+                  type="button"
+                  onClick={doLogin}
+                  disabled={escapeVisible || loginSuccess || loading || signedIn}
+                  style={{ display: escapeVisible || loginSuccess || signedIn ? 'none' : 'block' }}
+                >
+                  {loading ? 'Signing in...' : loginLabel}
+                </button>
+                <button
+                  id="google-btn"
+                  type="button"
+                  onClick={signInWithGoogle}
+                  disabled={loading || loginSuccess || signedIn}
+                >
+                  Continue with Google
+                </button>
+                {auth && (
+                  <>
+                    <div className="field-divider">or</div>
+                    <button
+                      id="phone-btn"
+                      type="button"
+                      onClick={() => {
+                        setPhoneOpen(true);
+                        setErrorMessage('');
+                      }}
+                      disabled={loading || loginSuccess || signedIn}
+                    >
+                      Sign in with phone
+                    </button>
+                  </>
+                )}
+                <div className="register-row">
+                  Don&apos;t have an account?{' '}
+                  <Link to="/auth/register" className="register-link">
+                    Sign up
+                  </Link>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── runaway escape button ── */}
+        <button
+          id="escape-btn"
+          type="button"
+          onMouseEnter={moveEscapeBtn}
+          onClick={moveEscapeBtn}
+          style={{ display: escapeVisible ? 'block' : 'none', left: escapePosition.left, top: escapePosition.top }}
+        >
+          Sign In →
+        </button>
+
+        {/* ── toast ── */}
         <div id="toast" className={toastVisible ? 'show' : ''}>{toastText}</div>
 
+        {/* ── success screen ── */}
         <div id="success-screen" className={successVisible ? 'show' : ''}>
           <div className="success-icon">✓</div>
           <div className="success-title">Welcome Back, Student! 🎉</div>
@@ -768,84 +738,126 @@ const FunnyLogin: React.FC = () => {
       </div>
 
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
         *{margin:0;padding:0;box-sizing:border-box}
-        .login-scene-root{min-height:100vh;background:var(--navy);font-family:'DM Sans',sans-serif;color:var(--text);position:relative;overflow:hidden;}
-        :root{--navy:#0a0f1e;--navy2:#0d1528;--panel:#111827;--glass:rgba(255,255,255,0.04);--glass2:rgba(255,255,255,0.07);--border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);--gold:#c9a84c;--gold2:#e8c96a;--blue:#3b82f6;--blue2:#60a5fa;--text:#f8fafc;--muted:#94a3b8;--muted2:#64748b;--green:#22c55e;--red:#ef4444;}
-        body{min-height:100vh;background:var(--navy);font-family:'DM Sans',sans-serif;color:var(--text);overflow:hidden;position:relative;}
-        #app{width:100%;min-height:100vh;position:relative;display:flex;align-items:center;justify-content:center;perspective:1200px;}
-        #bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(59,130,246,0.04) 1px, transparent 1px),linear-gradient(90deg, rgba(59,130,246,0.04) 1px, transparent 1px);background-size:40px 40px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);}
-        .orb{position:absolute;border-radius:50%;filter:blur(60px);pointer-events:none;animation:orb-drift 8s ease-in-out infinite alternate;}
-        .orb1{width:300px;height:300px;background:rgba(59,130,246,0.12);top:-60px;left:-60px;animation-delay:0s}
-        .orb2{width:250px;height:250px;background:rgba(201,168,76,0.08);bottom:-40px;right:-40px;animation-delay:-4s}
-        .orb3{width:180px;height:180px;background:rgba(139,92,246,0.08);top:50%;right:15%;animation-delay:-2s}
-        @keyframes orb-drift{from{transform:translate(0,0)}to{transform:translate(20px,15px)}}
-        #stage{position:relative;width:800px;max-width:100%;height:560px;display:flex;align-items:flex-end;justify-content:center;gap:0;}
-        #floor{position:absolute;bottom:0;left:0;right:0;height:160px;background:linear-gradient(to top, rgba(15,23,42,0.9), transparent);transform:perspective(800px) rotateX(60deg);transform-origin:bottom center;}
-        .floor-line{position:absolute;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(59,130,246,0.2),transparent);}
-        #char-canvas{position:absolute;left:50%;bottom:60px;transform:translateX(calc(-50% - 120px));width:200px;height:360px;}
-        #briefcase-wrap{position:absolute;right:calc(50% - 230px);bottom:55px;width:160px;height:130px;cursor:pointer;transform-style:preserve-3d;transition:transform 0.4s ease;}
-        #briefcase-wrap:hover{transform:scale(1.04) translateY(-4px)}
-        #form-panel{position:absolute;left:50%;bottom:80px;transform:translateX(calc(-50% + 60px)) translateY(30px);width:300px;opacity:0;pointer-events:none;transition:all 0.6s cubic-bezier(0.34,1.56,0.64,1);transform-style:preserve-3d;z-index:20;}
-        #form-panel.visible{opacity:1;pointer-events:all;transform:translateX(calc(-50% + 60px)) translateY(0);}
-        .glass-card{background:rgba(17,24,39,0.9);backdrop-filter:blur(20px);border:1px solid var(--border2);border-radius:20px;padding:28px;box-shadow:0 0 0 1px rgba(255,255,255,0.05) inset,0 40px 80px rgba(0,0,0,0.6),0 0 40px rgba(59,130,246,0.08);}
-        .card-header{display:flex;align-items:center;gap:12px;margin-bottom:24px;padding-bottom:18px;border-bottom:1px solid var(--border);}
-        .card-logo{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;box-shadow:0 4px 12px rgba(59,130,246,0.3);}
-        .card-title{font-size:15px;font-weight:600;color:var(--text)}
-        .card-sub{font-size:11px;color:var(--muted);margin-top:2px;letter-spacing:0.03em}
+        .login-scene-root{min-height:100vh;min-height:100dvh;height:100vh;height:100dvh;background:#02070b;font-family:'DM Sans',sans-serif;color:#f0fdf9;position:relative;overflow:hidden;display:block;width:100%;}
+        body{min-height:100vh;min-height:100dvh;height:100vh;height:100dvh;background:#02070b;font-family:'DM Sans',sans-serif;color:#f0fdf9;overflow:hidden;position:relative;margin:0;}
+        #app{width:100%;height:100%;min-height:100%;position:relative;overflow:hidden;display:grid;grid-template-columns:1fr 1fr;}
+        .login-stage{position:relative;height:100%;overflow:hidden;}
+        .login-stage::after{content:'';position:absolute;right:0;top:0;bottom:0;width:1px;background:linear-gradient(to bottom,rgba(45,212,167,0),rgba(45,212,167,0.25),rgba(45,212,167,0));}
+        .login-formside{position:relative;display:flex;align-items:center;justify-content:center;padding:28px;background:radial-gradient(130% 120% at 0% 50%,rgba(7,22,25,0.9),rgba(2,7,11,0.45));}
+        .glass-card{position:relative;z-index:10;width:min(400px,100%);background:rgba(6,16,19,0.74);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);border:1px solid rgba(45,212,167,0.2);border-radius:22px;padding:28px 26px 24px;box-shadow:0 24px 60px rgba(0,0,0,0.5),0 0 0 1px rgba(255,255,255,0.03) inset;}
+        .card-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid rgba(45,212,167,0.14);}
+        #signed-in-banner{display:flex;align-items:center;gap:8px;margin-bottom:18px;padding:10px 13px;border-radius:11px;background:rgba(45,212,167,0.1);border:1px solid rgba(45,212,167,0.28);color:#6ee7c8;font-size:12px;font-weight:600;}
+        .signed-in-dot{flex:none;width:8px;height:8px;border-radius:50%;background:#2dd4a7;box-shadow:0 0 10px #2dd4a7;}
+        .scene-canvas{position:absolute;inset:0;}
+        .portal-chip{position:absolute;top:22px;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;padding:9px 18px;border-radius:999px;background:rgba(7,22,25,0.6);border:1px solid rgba(45,212,167,0.28);backdrop-filter:blur(14px);font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6ee7c8;box-shadow:0 8px 30px rgba(0,0,0,0.45);z-index:30;}
+        .portal-chip-dot{width:7px;height:7px;border-radius:50%;background:#2dd4a7;box-shadow:0 0 10px #2dd4a7;animation:dot-pulse 1.6s ease-in-out infinite;}
+        @keyframes dot-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
+        .core-label{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 14px;border-radius:999px;background:rgba(6,18,20,0.85);border:1px solid rgba(45,212,167,0.45);color:#6ee7c8;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;white-space:nowrap;box-shadow:0 8px 30px rgba(0,0,0,0.5),0 0 24px rgba(45,212,167,0.15);backdrop-filter:blur(10px);}
+        .core-label-sub{font-size:9px;font-weight:600;color:#8aa0b4;letter-spacing:0.2em;}
+        .core-label[data-out="1"]{border-color:rgba(248,113,113,0.5);color:#fca5a5;box-shadow:0 8px 30px rgba(0,0,0,0.5),0 0 24px rgba(248,113,113,0.12);}
+        #speech{position:absolute;top:12%;left:50%;transform:translateX(-50%) translateY(-6px);background:rgba(7,22,25,0.92);border:1px solid rgba(45,212,167,0.24);border-radius:14px;padding:10px 18px;font-size:13px;font-weight:500;color:#f0fdf9;white-space:nowrap;opacity:0;pointer-events:none;z-index:40;box-shadow:0 10px 34px rgba(0,0,0,0.5);transition:all 0.4s cubic-bezier(0.34,1.56,0.64,1);}
+        #speech.show{opacity:1;transform:translateX(-50%) translateY(0);}
+        #speech::after{content:'';position:absolute;bottom:-7px;left:50%;transform:translateX(-50%);width:12px;height:7px;background:rgba(7,22,25,0.92);clip-path:polygon(0 0,100% 0,50% 100%);border-left:1px solid rgba(45,212,167,0.24);border-right:1px solid rgba(45,212,167,0.24);}
+        #bag-hint{position:absolute;bottom:12%;left:50%;transform:translateX(-50%);font-size:12px;color:#7dd3c0;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;animation:hint-pulse 2s ease-in-out infinite;pointer-events:none;z-index:30;background:rgba(7,22,25,0.55);padding:7px 14px;border-radius:999px;border:1px solid rgba(45,212,167,0.18);}
+        @keyframes hint-pulse{0%,100%{opacity:0.55;transform:translateX(-50%) translateY(0)}50%{opacity:1;transform:translateX(-50%) translateY(-5px)}}
+        .card-logo{width:38px;height:38px;border-radius:11px;background:linear-gradient(135deg,#0d9488,#8b5cf6);display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:#fff;box-shadow:0 4px 16px rgba(13,148,136,0.5),0 0 0 1px rgba(45,212,167,0.25) inset;}
+        .card-title{font-size:15px;font-weight:700;color:#f0fdf9}
+        .card-sub{font-size:11px;color:#7f96a8;margin-top:2px;letter-spacing:0.03em}
         .field-group{margin-bottom:16px}
-        .field-label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;display:block;}
-        .field-input{width:100%;padding:11px 14px;background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:10px;font-size:13px;color:var(--text);font-family:'DM Sans',sans-serif;transition:border-color 0.2s,background 0.2s,box-shadow 0.2s;outline:none;}
-        .field-input:focus{border-color:rgba(59,130,246,0.6);background:rgba(59,130,246,0.06);box-shadow:0 0 0 3px rgba(59,130,246,0.12);}
-        .field-input::placeholder{color:var(--muted2);font-size:12px}
-        .hint-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
-        .hint-text{font-size:11px;color:var(--muted2)}
-        .hint-link{font-size:11px;color:var(--blue2);cursor:pointer}
-        #login-btn{width:100%;padding:13px;background:linear-gradient(135deg,#1d4ed8,#3b82f6);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:0.02em;transition:transform 0.15s,box-shadow 0.15s,opacity 0.15s;box-shadow:0 4px 20px rgba(59,130,246,0.3);position:relative;overflow:hidden;}
-        #login-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.1),transparent);pointer-events:none;}
-        #login-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(59,130,246,0.4)}
+        .field-label{font-size:11px;font-weight:600;color:#8aa0b4;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:5px;display:block;}
+        .field-input{width:100%;padding:11px 13px;background:rgba(2,10,12,0.6);border:1px solid rgba(255,255,255,0.1);border-radius:11px;font-size:13px;color:#f0fdf9;font-family:'DM Sans',sans-serif;transition:border-color 0.2s,box-shadow 0.2s;outline:none;caret-color:#2dd4a7;}
+        .field-input:focus{border-color:rgba(45,212,167,0.75);box-shadow:0 0 0 3px rgba(45,212,167,0.12);}
+        .field-input::placeholder{color:#52697c;font-size:12px}
+        .hint-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+        .hint-text{font-size:11px;color:#8aa0b4}
+        .hint-link{font-size:11px;color:#6ee7c8;cursor:pointer}
+        #login-btn{width:100%;padding:13px;background:linear-gradient(135deg,#0f766e,#2dd4a7 55%,#7c3aed);color:#fff;border:none;border-radius:11px;font-size:14px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:0.02em;transition:transform 0.15s,box-shadow 0.15s,opacity 0.15s;box-shadow:0 6px 24px rgba(13,148,136,0.4);position:relative;overflow:hidden;}
+        #login-btn::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,0.12),transparent);pointer-events:none;}
+        #login-btn:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(13,148,136,0.5)}
         #login-btn:active{transform:scale(0.98)}
-        #login-btn.loading{opacity:0.7;pointer-events:none}
-        #google-btn{width:100%;padding:13px;margin-top:12px;background:#fff;color:#0f172a;border:none;border-radius:10px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:0.02em;transition:transform 0.15s,box-shadow 0.15s,opacity 0.15s;box-shadow:0 4px 20px rgba(15,23,42,0.12);}
-        #google-btn:hover{transform:translateY(-1px);box-shadow:0 6px 24px rgba(15,23,42,0.22)}
+        #google-btn{width:100%;padding:13px;margin-top:12px;background:#fff;color:#0f172a;border:none;border-radius:11px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:0.02em;transition:transform 0.15s,box-shadow 0.15s,opacity 0.15s;box-shadow:0 4px 20px rgba(15,23,42,0.14);}
+        #google-btn:hover{transform:translateY(-1px);box-shadow:0 6px 26px rgba(15,23,42,0.26)}
         #google-btn:active{transform:scale(0.98)}
         #google-btn:disabled{opacity:0.65;cursor:not-allowed}
-        #error-msg{margin-bottom:12px;padding:11px 14px;background:rgba(220,38,38,0.14);border:1px solid rgba(220,38,38,0.18);border-radius:10px;color:#fca5a5;font-size:13px;}
-        #escape-btn{position:absolute;width:120px;height:40px;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 4px 16px rgba(220,38,38,0.35);z-index:50;transition:box-shadow 0.2s;}
-        #toast{position:absolute;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:rgba(17,24,39,0.95);border:1px solid var(--border2);border-radius:12px;padding:10px 18px;font-size:13px;color:var(--text);white-space:nowrap;opacity:0;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);z-index:100;box-shadow:0 8px 32px rgba(0,0,0,0.4);}
+        .field-divider{display:flex;align-items:center;gap:10px;margin:14px 0 12px;font-size:11px;color:#52697c;text-transform:uppercase;letter-spacing:0.06em;}
+        .field-divider::before,.field-divider::after{content:'';flex:1;height:1px;background:rgba(255,255,255,0.09);}
+        #phone-btn{width:100%;padding:13px;margin-top:0;background:transparent;color:#f0fdf9;border:1px solid rgba(255,255,255,0.13);border-radius:11px;font-size:14px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;letter-spacing:0.02em;transition:transform 0.15s,border-color 0.15s,background 0.15s;display:flex;align-items:center;justify-content:center;gap:8px;}
+        #phone-btn:hover{transform:translateY(-1px);background:rgba(45,212,167,0.06);border-color:rgba(45,212,167,0.4)}
+        #phone-btn:active{transform:scale(0.98)}
+        #phone-btn:disabled{opacity:0.65;cursor:not-allowed}
+        #error-msg{margin-bottom:12px;padding:11px 14px;background:rgba(220,38,38,0.14);border:1px solid rgba(220,38,38,0.2);border-radius:11px;color:#fca5a5;font-size:13px;}
+        .register-row{margin-top:16px;text-align:center;font-size:12.5px;color:#8aa0b4;}
+        .register-link{color:#6ee7c8;font-weight:600;text-decoration:none;}
+        .register-link:hover{text-decoration:underline;}
+        #escape-btn{position:absolute;width:130px;height:44px;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;border-radius:11px;font-size:13px;font-weight:700;font-family:'DM Sans',sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(220,38,38,0.4);z-index:80;transition:box-shadow 0.2s;}
+        #escape-btn:hover{box-shadow:0 8px 28px rgba(220,38,38,0.6)}
+        #toast{position:absolute;top:20px;left:50%;transform:translateX(-50%) translateY(-20px);background:rgba(6,18,20,0.96);border:1px solid rgba(45,212,167,0.24);border-radius:12px;padding:10px 18px;font-size:13px;color:#f0fdf9;white-space:nowrap;opacity:0;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);z-index:100;box-shadow:0 10px 36px rgba(0,0,0,0.5);}
         #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-        #bag-hint{position:absolute;right:calc(50% - 280px);bottom:190px;font-size:12px;color:var(--muted);font-weight:500;letter-spacing:0.04em;animation:hint-pulse 2s ease-in-out infinite;pointer-events:none;}
-        @keyframes hint-pulse{0%,100%{opacity:0.5;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}
-        #success-screen{position:absolute;inset:0;background:rgba(10,15,30,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.6s ease;z-index:200;}
+        #success-screen{position:absolute;inset:0;background:rgba(2,7,11,0.97);display:flex;flex-direction:column;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.6s ease;z-index:200;}
         #success-screen.show{opacity:1;pointer-events:all}
-        .success-icon{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#059669,#22c55e);display:flex;align-items:center;justify-content:center;font-size:32px;animation:success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;box-shadow:0 0 40px rgba(34,197,94,0.3);margin-bottom:20px;}
+        .success-icon{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,#0d9488,#34d399);display:flex;align-items:center;justify-content:center;font-size:32px;animation:success-pop 0.5s cubic-bezier(0.34,1.56,0.64,1) both;box-shadow:0 0 44px rgba(52,211,153,0.35);margin-bottom:20px;}
         @keyframes success-pop{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}
-        .success-title{font-size:32px;font-weight:700;background:linear-gradient(135deg,#f8fafc,#94a3b8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;animation:fade-up 0.5s 0.2s both;}
-        .success-sub{font-size:14px;color:var(--muted);animation:fade-up 0.5s 0.35s both;}
+        .success-title{font-size:30px;font-weight:700;background:linear-gradient(135deg,#f0fdf9,#7dd3c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:8px;animation:fade-up 0.5s 0.2s both;}
+        .success-sub{font-size:14px;color:#8aa0b4;animation:fade-up 0.5s 0.35s both;}
         @keyframes fade-up{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
         .progress-bar{width:200px;height:2px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:28px;overflow:hidden;animation:fade-up 0.5s 0.5s both;}
-        .progress-fill{height:100%;width:0;background:linear-gradient(90deg,#3b82f6,#22c55e);animation:fill-bar 2.5s 0.8s ease-out forwards;}
+        .progress-fill{height:100%;width:0;background:linear-gradient(90deg,#2dd4a7,#8b5cf6);animation:fill-bar 2.5s 0.8s ease-out forwards;}
         @keyframes fill-bar{to{width:100%}}
         .conf{position:absolute;width:8px;height:8px;border-radius:2px;animation:conf-fall var(--d) var(--dl) ease-in forwards;pointer-events:none;z-index:190;}
-        @keyframes conf-fall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(700px) rotate(540deg);opacity:0}}
-        #speech{position:absolute;background:rgba(17,24,39,0.95);border:1px solid var(--border2);border-radius:12px;padding:8px 14px;font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;opacity:0;transition:all 0.3s cubic-bezier(0.34,1.56,0.64,1);pointer-events:none;z-index:30;left:calc(50% - 300px);bottom:380px;box-shadow:0 8px 24px rgba(0,0,0,0.4);}
-        #speech.show{opacity:1;transform:translateY(-4px)}
-        #speech::after{content:'';position:absolute;bottom:-7px;left:20px;width:12px;height:7px;background:rgba(17,24,39,0.95);clip-path:polygon(0 0,100% 0,50% 100%);border-left:1px solid var(--border2);border-right:1px solid var(--border2);}
-        @media (max-width: 640px) {
-          #stage{height:620px;width:100%;}
-          #char-canvas{left:6px;bottom:80px;transform:none;}
-          #briefcase-wrap{left:auto;right:6px;bottom:70px;}
-          #briefcase-wrap:hover{transform:scale(1.04) translateY(-4px)}
-          #bag-hint{right:12px;left:auto;bottom:200px;}
-          #speech{left:50%;right:auto;bottom:auto;top:110px;transform:translateX(-50%);max-width:86vw;white-space:normal;text-align:center;}
-          #speech.show{transform:translateX(-50%) translateY(-4px)}
-          #form-panel{left:50%;right:auto;bottom:30px;transform:translateX(-50%) translateY(30px);width:92vw;max-width:300px;}
-          #form-panel.visible{transform:translateX(-50%) translateY(0);}
-          #toast{white-space:normal;width:max-content;max-width:88vw;text-align:center;}
+        @keyframes conf-fall{0%{transform:translateY(-10px) rotate(0);opacity:1}100%{transform:translateY(780px) rotate(540deg);opacity:0}}
+        @media (max-width: 860px) {
+          #app{grid-template-columns:1fr;grid-template-rows:44dvh 1fr;overflow-y:auto;}
+          .login-stage{height:100%;}
+          .login-stage::after{right:auto;left:0;right:0;top:auto;bottom:0;height:1px;width:100%;background:linear-gradient(to right,rgba(45,212,167,0),rgba(45,212,167,0.25),rgba(45,212,167,0));}
+          .login-formside{align-items:flex-start;justify-content:center;padding:22px 16px 44px;}
+          .glass-card{width:min(400px,100%);}
         }
+        @media (max-width: 640px) {
+          #speech{white-space:normal;text-align:center;width:max-content;max-width:88vw;top:8%;}
+          #bag-hint{white-space:normal;text-align:center;max-width:86vw;}
+          #toast{white-space:normal;width:max-content;max-width:88vw;text-align:center;}
+          .login-formside{padding:20px 14px 42px;}
+          .glass-card{padding:22px 18px 20px;}
+          .field-group{margin-bottom:13px;}
+          .portal-chip{top:16px;}
+          .core-label{font-size:11px;letter-spacing:0.1em;}
+        }
+        @media (max-height: 640px) and (min-width: 861px) {
+          .login-formside{padding:16px;}
+          .glass-card{width:min(360px,100%);padding:20px 20px 18px;}
+          #bag-hint{bottom:8%;}
+          #speech{top:7%;}
+        }
+        #login-btn,#google-btn,#phone-btn,#escape-btn{touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
       `}</style>
     </div>
   );
 };
+
+/* ════════════════════════════════════════════════════════════════
+   CONFETTI
+════════════════════════════════════════════════════════════════ */
+function launchConfetti(container: HTMLDivElement | null) {
+  if (!container) return;
+  const colors = ['#2dd4a7', '#8b5cf6', '#e879f9', '#34d399', '#fbbf24', '#c4b5fd', '#67e8f9'];
+  for (let i = 0; i < 70; i += 1) {
+    window.setTimeout(() => {
+      const d = document.createElement('div');
+      d.className = 'conf';
+      d.style.setProperty('--d', `${1.2 + Math.random() * 1.5}s`);
+      d.style.setProperty('--dl', `${Math.random() * 0.4}s`);
+      d.style.left = `${Math.random() * 100}%`;
+      d.style.top = '0';
+      d.style.background = colors[i % colors.length];
+      d.style.width = `${6 + Math.random() * 8}px`;
+      d.style.height = `${6 + Math.random() * 8}px`;
+      d.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+      container.appendChild(d);
+      window.setTimeout(() => d.remove(), 3000);
+    }, i * 35);
+  }
+}
 
 export default FunnyLogin;

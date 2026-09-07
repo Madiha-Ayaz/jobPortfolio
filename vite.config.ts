@@ -10,4 +10,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  optimizeDeps: {
+    exclude: ['@react-three/postprocessing'],
+    include: ['buffer'],
+  },
+  build: {
+    sourcemap: false,
+  },
 })

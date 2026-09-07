@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import AnimatedSection from '@/components/ui/AnimatedSection';
+import { useTheme } from '@/context/ThemeContext';
 
 const skills = [
   { name: 'Next.js', color: '#ffffff', level: 90 },
@@ -18,25 +19,36 @@ const skills = [
 
 const certifications = [
   {
-    name: 'Fundamental of Python with AI',
-    issuer: 'Presidential Initiative AI Course (PIAIC)',
+    name: 'Presidential Initiative for Artificial Intelligence and Computing',
+    issuer: 'PIAIC',
     year: '2022',
     color: '#3776ab',
+    status: 'In Progress',
     icon: 'M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18',
+  },
+  {
+    name: 'Governor Initiative for Artificial Intelligence and Computing',
+    issuer: 'GIAIC',
+    year: '2024',
+    color: '#a78bfa',
+    status: 'In Progress',
+    icon: 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z',
   },
   {
     name: 'MERN Stack Developer',
     issuer: 'Saylani Mass IT Training (SMIT)',
     year: '2025',
     color: '#ec4899',
+    imageUrl: '/cer.PNG',
     icon: 'M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5',
   },
   {
-    name: 'Generative AI',
-    issuer: 'Governor Initiative AI Course (GIAIC)',
-    year: '2024',
-    color: '#a78bfa',
-    icon: 'M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z',
+    name: 'Google Antigravity Hackathon',
+    issuer: 'Google',
+    year: '2025',
+    color: '#fb923c',
+    imageUrl: '/1782404779823.jfif',
+    icon: 'M12 2a7 7 0 017 7c0 1.5-.5 2.9-1.3 4 .3 1.2-.2 2.4-1.3 3 .4 1.2 0 2.5-1 3.2L12 21l-3.4 2.7c-1-.7-1.4-2-1-3.2-.5-.6-.8-1.4-.8-2.2 0-.6.1-1.2.4-1.8-.8-1.1-1.2-2.5-1.2-4a7 7 0 017-7z',
   },
 ];
 
@@ -50,10 +62,10 @@ const education = [
 ];
 
 const stats = [
-  { value: 6, label: 'Projects', suffix: '+' },
-  { value: 12, label: 'Technologies', suffix: '+' },
-  { value: 3, label: 'Certifications', suffix: '' },
-  { value: 100, label: 'Commitment', suffix: '%' },
+  { value: 6, labelKey: 'about.projects', suffix: '+' },
+  { value: 12, labelKey: 'about.technologies', suffix: '+' },
+  { value: 3, labelKey: 'about.certsTitle', suffix: '' },
+  { value: 100, labelKey: 'about.commitment', suffix: '%' },
 ];
 
 function SkillCard({ skill, index }: { skill: typeof skills[0]; index: number }) {
@@ -130,6 +142,7 @@ function Counter({ target, suffix = '' }: { target: number; suffix?: string }) {
 }
 
 export default function AboutPage() {
+  const { t } = useTheme();
   return (
     <div className="relative min-h-screen text-body overflow-hidden">
       <div className="relative z-10 max-w-6xl mx-auto px-4">
@@ -141,8 +154,8 @@ export default function AboutPage() {
               <div
                 className="w-56 h-56 md:w-72 md:h-72 rounded-full overflow-hidden"
                 style={{
-                  border: '3px solid rgba(167,139,250,0.4)',
-                  boxShadow: '0 0 40px rgba(167,139,250,0.2), 0 0 80px rgba(167,139,250,0.1), inset 0 0 30px rgba(0,0,0,0.3)',
+                  border: '3px solid rgba(129,140,248,0.4)',
+                  boxShadow: '0 0 40px rgba(129,140,248,0.2), 0 0 80px rgba(129,140,248,0.1), inset 0 0 30px rgba(0,0,0,0.3)',
                 }}
               >
                 <img
@@ -166,44 +179,39 @@ export default function AboutPage() {
               <div
                 className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 text-xs font-bold tracking-[0.2em] uppercase rounded-full"
                 style={{
-                  border: '1px solid rgba(167,139,250,0.3)',
-                  background: 'rgba(167,139,250,0.08)',
-                  color: '#c4b5fd',
+                  border: '1px solid rgba(129,140,248,0.3)',
+                  background: 'rgba(129,140,248,0.08)',
+                  color: '#a5b4fc',
                 }}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
                 </svg>
-                <span>About Me</span>
+                <span>{t("about.title")}</span>
               </div>
 
-              <h1 className="text-4xl md:text-6xl font-black mb-5 leading-tight text-heading">
+              <h1 className="text-4xl md:text-6xl font-black mb-5 leading-tight text-gradient">
                 Madiha Ayaz
               </h1>
 
               <p className="text-lg text-body leading-relaxed mb-4">
-                Hello! I&apos;m a professional <strong className="text-heading">Frontend Web Developer</strong> building
-                lightning-fast and intelligent web applications.
+                {t("about.intro1")}
               </p>
               <p className="text-base text-muted leading-relaxed mb-4">
-                I specialize in <strong className="text-highlight-light">Next.js</strong>,{' '}
-                <strong className="text-highlight-light">Tailwind CSS</strong>,{' '}
-                <strong className="text-highlight-light">TypeScript</strong>, and integrating smart solutions like{' '}
-                <strong className="text-accent-light">AI Chatbots</strong> and{' '}
-                <strong className="text-warning">Firebase Authentication</strong>.
+                {t("about.intro2")}
               </p>
               <p className="text-sm text-dim leading-relaxed">
-                Certified by PIAIC, GIAIC, and SMIT — continuously learning and growing.
+                {t("about.intro3")}
               </p>
 
               {/* Stats */}
               <div className="grid grid-cols-2 gap-x-6 gap-y-6 mt-8 justify-items-center lg:flex lg:items-center lg:gap-8 lg:justify-start">
                 {stats.map((stat) => (
-                  <div key={stat.label} className="text-center">
+                  <div key={stat.labelKey} className="text-center">
                     <div className="text-2xl md:text-3xl font-black text-brand">
                       <Counter target={stat.value} suffix={stat.suffix} />
                     </div>
-                    <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-dim mt-1">{stat.label}</div>
+                    <div className="text-[10px] font-semibold tracking-[0.15em] uppercase text-dim mt-1">{t(stat.labelKey)}</div>
                   </div>
                 ))}
               </div>
@@ -215,9 +223,9 @@ export default function AboutPage() {
         <AnimatedSection className="py-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black mb-3 text-heading">
-              My Skillset
+              {t("about.skillsTitle")}
             </h2>
-            <p className="text-muted text-sm">Technologies I work with daily</p>
+            <p className="text-muted text-sm">{t("about.skillsSub")}</p>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4 max-w-5xl mx-auto">
@@ -231,9 +239,9 @@ export default function AboutPage() {
         <AnimatedSection className="py-16">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black mb-3 text-heading">
-              Certifications
+              {t("about.certsTitle")}
             </h2>
-            <p className="text-muted text-sm">Validated expertise from leading programs</p>
+            <p className="text-muted text-sm">{t("about.certsSub")}</p>
           </div>
 
           <div className="max-w-4xl mx-auto space-y-6">
@@ -247,12 +255,23 @@ export default function AboutPage() {
                 }}
               >
                 <div
-                  className="flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center"
+                  className="flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center overflow-hidden"
                   style={{ background: `${cert.color}15`, border: `1px solid ${cert.color}35` }}
                 >
-                  <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke={cert.color} strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d={cert.icon} />
-                  </svg>
+                  {cert.imageUrl ? (
+                    <a href={cert.imageUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full group/cimg" aria-label={`View ${cert.name} certificate`}>
+                      <img
+                        src={cert.imageUrl}
+                        alt={`${cert.name} certificate`}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover/cimg:scale-110"
+                      />
+                    </a>
+                  ) : (
+                    <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke={cert.color} strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d={cert.icon} />
+                    </svg>
+                  )}
                 </div>
 
                 <div className="flex-1 min-w-0">
@@ -260,10 +279,41 @@ export default function AboutPage() {
                     <span className="text-xs font-bold tracking-wider px-2 py-0.5 rounded-full" style={{ background: `${cert.color}20`, color: cert.color }}>
                       {cert.year}
                     </span>
+                    {cert.status && (
+                      <span className="text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-full uppercase" style={{ background: '#f59e0b18', color: '#fbbf24' }}>
+                        {cert.status}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-lg font-bold text-heading mb-1">{cert.name}</h3>
                   <p className="text-sm text-muted">{cert.issuer}</p>
                 </div>
+
+                {cert.imageUrl ? (
+                  <a
+                    href={cert.imageUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 w-28 h-20 rounded-xl overflow-hidden border border-white/10 group-hover:border-white/20 transition-all duration-300 group-hover:scale-[1.03]"
+                    aria-label={`View ${cert.name} certificate`}
+                  >
+                    <img
+                      src={cert.imageUrl}
+                      alt={`${cert.name} certificate`}
+                      loading="lazy"
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  </a>
+                ) : (
+                  <div
+                    className="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center"
+                    style={{ background: `${cert.color}15`, border: `1px solid ${cert.color}35` }}
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke={cert.color} strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                    </svg>
+                  </div>
+                )}
 
                 <div
                   className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
@@ -278,7 +328,7 @@ export default function AboutPage() {
         <AnimatedSection className="py-16 pb-24">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-5xl font-black mb-3 text-heading">
-              Education
+              {t("about.education")}
             </h2>
           </div>
 
@@ -296,7 +346,7 @@ export default function AboutPage() {
                     </svg>
                   </div>
                   <span className="text-xs font-bold tracking-wider px-2 py-0.5 rounded-full" style={{ background: `${edu.color}20`, color: edu.color }}>
-                    Graduated {edu.graduated}
+                    {t("about.graduated")} {edu.graduated}
                   </span>
                 </div>
                 <h3 className="text-xl font-bold text-heading mb-2">{edu.degree}</h3>

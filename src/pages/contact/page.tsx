@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { useTheme } from '@/context/ThemeContext';
 import AnimatedSection from '@/components/ui/AnimatedSection';
 import EnhancedContactForm from '@/components/contact/EnhancedContactForm';
 import ContactInfoCards from '@/components/contact/ContactInfoCards';
@@ -17,6 +18,7 @@ const itemVariants = {
 };
 
 export default function ContactPage() {
+  const { t } = useTheme();
   return (
     <div className="relative min-h-screen overflow-hidden">
       <AnimatedSection>
@@ -33,22 +35,21 @@ export default function ContactPage() {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.6 }}
-              className="inline-flex items-center gap-2 mb-5 px-5 py-2 text-xs font-bold tracking-[0.25em] uppercase rounded-full"
-              style={{ border: '1px solid rgba(167,139,250,0.3)', background: 'rgba(167,139,250,0.08)', color: '#c4b5fd' }}
+              className="inline-flex items-center gap-2 mb-5 px-5 py-2 text-xs font-bold tracking-[0.25em] uppercase rounded-full glass"
+              style={{ border: '1px solid rgba(129,140,248,0.3)', background: 'rgba(99,102,241,0.08)', color: '#a5b4fc' }}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
               </svg>
-              <span>Get In Touch</span>
+              <span>{t('contact.badge')}</span>
             </motion.div>
 
-            <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight text-heading">
-              Contact Me
+            <h1 className="text-5xl md:text-7xl font-black mb-6 leading-tight text-gradient">
+              {t('contact.title')}
             </h1>
 
             <p className="text-lg md:text-xl text-muted max-w-2xl mx-auto leading-relaxed">
-              Have a project inquiry or want to discuss opportunities? I&apos;d be happy to hear from you.
-              Let&apos;s connect and explore possibilities.
+              {t('contact.subtitle')}
             </p>
           </motion.div>
 
@@ -60,18 +61,16 @@ export default function ContactPage() {
 
             <motion.div className="md:col-span-2" variants={itemVariants}>
               <div
-                className="relative p-5 sm:p-8 rounded-2xl"
+                className="relative p-5 sm:p-8 rounded-2xl glass-strong"
                 style={{
                   background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(167,139,250,0.12)',
-                  boxShadow: '0 20px 60px rgba(0,0,0,0.3), 0 0 40px rgba(167,139,250,0.04)',
-                  backdropFilter: 'blur(20px)',
+                  border: '1px solid rgba(129,140,248,0.14)',
                 }}
               >
-                <div className="absolute -top-px left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(167,139,250,0.4), rgba(6,182,212,0.4), transparent)' }} />
+                <div className="absolute -top-px left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(129,140,248,0.45), rgba(56,189,248,0.45), transparent)' }} />
 
                 <div className="relative z-10">
-                  <h2 className="text-xl sm:text-2xl font-black mb-6 sm:mb-8 text-heading">Send Your Message</h2>
+                  <h2 className="text-xl sm:text-2xl font-black mb-6 sm:mb-8 text-heading">{t('contact.send')}</h2>
                   <EnhancedContactForm />
                 </div>
               </div>
@@ -85,7 +84,7 @@ export default function ContactPage() {
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                 </svg>
-                <span>Your message is secure and confidential</span>
+                <span>{t('contact.secure')}</span>
               </motion.div>
             </motion.div>
           </motion.div>
@@ -107,8 +106,8 @@ export default function ContactPage() {
               style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}
             >
               <div className="text-center sm:text-left">
-                <p className="text-sm text-muted mb-1">Looking for other ways to connect?</p>
-                <p className="text-body font-semibold">Check out my social profiles</p>
+                <p className="text-sm text-muted mb-1">{t('contact.otherWays')}</p>
+                <p className="text-body font-semibold">{t('contact.socials')}</p>
               </div>
               <div className="flex items-center gap-3">
                 {[
@@ -122,7 +121,7 @@ export default function ContactPage() {
                     rel="noopener noreferrer"
                     className="w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 hover:scale-110"
                     style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', color: '#94a3b8' }}
-                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(167,139,250,0.15)'; e.currentTarget.style.borderColor = 'rgba(167,139,250,0.4)'; e.currentTarget.style.color = '#c4b5fd'; }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(129,140,248,0.15)'; e.currentTarget.style.borderColor = 'rgba(129,140,248,0.4)'; e.currentTarget.style.color = '#a5b4fc'; }}
                     onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#94a3b8'; }}
                     aria-label={s.label}
                   >

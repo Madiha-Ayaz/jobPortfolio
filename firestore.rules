@@ -1,10 +1,106 @@
 rules_version = '2';
 service cloud.firestore {
+  // ===============================================================
+  // Assumed Data Model
+  // ===============================================================
+  //
+  // Collection: contacts     (public contact form submissions)
+  // Document ID: auto-generated (addDoc)
+  // Fields:
+  //   - name:      string (required, 1..100 chars)
+  //   - email:     string (required, valid email, <=254 chars)
+  //   - subject:   string (required, 1..200 chars)
+  //   - message:   string (required, 1..5000 chars)
+  //   - timestamp: timestamp (set by serverTimestamp(), <= now)
+  //
+  // Collection: users         (authenticated user profiles)
+  // Document ID: {uid} (must equal the signed-in user's uid)
+  // Fields:
+  //   - email:    string (required, valid email)
+  //   - name:     string (optional, 1..100 chars)
+  //   - phone:    string (optional, valid E.164 number)
+  //   - photoURL: string (optional, valid http(s) URL)
+  //   - createdAt: timestamp (immutable)
+  //   - provider: string (optional, e.g. 'password' | 'google' | 'phone')
+  //
+  // ===============================================================
+  // Helper Functions
+  // ===============================================================
+  function isAuthenticated() {
+    return request.auth != null;
+  }
+
+  function isOwner(userId) {
+    return isAuthenticated() && request.auth.uid == userId;
+  }
+
+  function isValidEmail(value) {
+    return value is string
+      && value.size() <= 254
+      && value.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+  }
+
+  function isValidUrl(value) {
+    return value is string
+      && (value.matches('^https://.*') || value.matches('^http://.*'));
+  }
+
+  function isValidPhone(value) {
+    return value is string
+      && value.matches('^\\+[1-9][0-9]{7,14}$');
+  }
+
+  // ── contacts ──────────────────────────────────────────────────
+  // Public web form: anyone may submit a message, nobody may read,
+  // update or delete these documents from the client.
+  function isValidContactCreate(data) {
+    return data.keys().hasOnly(['name', 'email', 'subject', 'message', 'timestamp'])
+      && data.name is string && data.name.size() >= 1 && data.name.size() <= 100
+      && isValidEmail(data.email)
+      && data.subject is string && data.subject.size() >= 1 && data.subject.size() <= 200
+      && data.message is string && data.message.size() >= 1 && data.message.size() <= 5000
+      && data.timestamp is timestamp && data.timestamp <= request.time;
+  }
+
+  // ── users ─────────────────────────────────────────────────────
+  function isValidUserCreate(data) {
+    return data.keys().hasOnly(['email', 'name', 'phone', 'photoURL', 'createdAt', 'provider'])
+      && isValidEmail(data.email)
+      && (!('name' in data) || (data.name is string && data.name.size() >= 1 && data.name.size() <= 100))
+      && (!('phone' in data) || isValidPhone(data.phone))
+      && (!('photoURL' in data) || isValidUrl(data.photoURL))
+      && data.createdAt is timestamp && data.createdAt <= request.time
+      && (!('provider' in data) || (data.provider is string && data.provider.size() <= 40));
+  }
+
+  function isValidUserUpdate(data) {
+    // Immutable fields (createdAt, provider) must not change.
+    return data.keys().hasOnly(['email', 'name', 'phone', 'photoURL'])
+      && isValidEmail(data.email)
+      && (!('name' in data) || (data.name is string && data.name.size() >= 1 && data.name.size() <= 100))
+      && (!('phone' in data) || isValidPhone(data.phone))
+      && (!('photoURL' in data) || isValidUrl(data.photoURL))
+      && request.resource.data.createdAt == resource.data.createdAt;
+  }
+
   match /databases/{database}/documents {
-    // Allow public write access to the "contacts" collection for the contact form
+    // ── Contacts: public create only ─────────────────────────────
     match /contacts/{contactId} {
-      allow create: if true;
+      allow create: if isValidContactCreate(request.resource.data);
       allow read, update, delete: if false;
+    }
+
+    // ── Users: owner-only access, strict schema ──────────────────
+    // Ownership is enforced by the document path: {userId} must match the
+    // signed-in user's uid, so a user can never create/modify another
+    // user's profile document.
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId)
+        && isValidUserCreate(request.resource.data);
+      allow update: if isOwner(userId)
+        && isValidUserUpdate(request.resource.data);
+      allow delete: if isOwner(userId);
     }
   }
 }

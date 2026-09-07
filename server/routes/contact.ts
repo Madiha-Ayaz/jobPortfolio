@@ -8,6 +8,7 @@ import { completeJson, isAiAvailable } from '../lib/aiClient.ts';
 import { CONTACT_ASSIST_SYSTEM } from '../lib/prompts.ts';
 import { profile } from '../lib/portfolio.ts';
 import { sanitizeText } from '../lib/security.ts';
+import { saveContact } from '../lib/db.ts';
 
 const router = Router();
 
@@ -119,6 +120,65 @@ router.post('/assist', async (req, res) => {
   } catch (err) {
     console.error('[contact/assist] failed:', err);
     return res.status(500).json({ error: 'Failed to generate contact assistance' });
+  }
+});
+
+/**
+ * POST /api/contact/submit — save a contact submission.
+ * Runs the same AI triage (intent / priority / spam) and persists to Neon.
+ */
+router.post('/submit', async (req, res) => {
+  try {
+    const body = req.body || {};
+    const name = sanitizeText(body.name, 200);
+    const email = sanitizeText(body.email, 300);
+    const subject = sanitizeText(body.subject, 300);
+    const message = sanitizeText(body.message, 20_000);
+
+    if (!name || !email || !message) {
+      return res.status(400).json({ error: 'name, email and message are required.' });
+    }
+
+    // Best-effort AI triage (same heuristic/AI as /assist).
+    let intent = 'general';
+    let priority = 'low';
+    let isSpam = false;
+    try {
+      const aiEnabled = isAiAvailable();
+      let parsed: Partial<AssistResult> | null = null;
+      if (aiEnabled && message.length > 15) {
+        parsed = await completeJson<Partial<AssistResult>>(
+          CONTACT_ASSIST_SYSTEM,
+          `Portfolio owner: ${profile.name} (${profile.role})\nVisitor name: ${name}\nVisitor email: ${email}\nSubject: ${subject || '(none)'}\nMessage: ${message}`,
+          { temperature: 0.2, maxTokens: 400 }
+        );
+      }
+      const fallback = heuristicAssist({ name, subject, message });
+      const final = parsed ?? fallback;
+      intent = final.intent;
+      priority = final.priority;
+      isSpam = Boolean(final.isSpam);
+    } catch {
+      /* triage is best-effort — never fail the submission */
+    }
+
+    await saveContact({
+      name,
+      email,
+      subject,
+      message,
+      intent,
+      priority,
+      isSpam,
+      ip: req.ip,
+      userAgent: req.get('user-agent') || undefined,
+      source: 'contact',
+    });
+
+    return res.json({ ok: true, intent, priority, isSpam });
+  } catch (err) {
+    console.error('[contact/submit] failed:', err);
+    return res.status(500).json({ error: 'Failed to save message' });
   }
 });
 

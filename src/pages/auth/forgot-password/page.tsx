@@ -10,19 +10,23 @@ const ForgotPasswordPage = () => {
   // The actual form with hooks will only render when firebaseAuth is available.
   if (!firebaseAuth) {
     return (
-      <AnimatedSection>
-        <div className="max-w-md mx-auto bg-gray-800/20 p-8 rounded-lg border border-border-color">
-          <p className="text-center text-text-secondary">Loading authentication components...</p>
-        </div>
-      </AnimatedSection>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <AnimatedSection>
+          <div className="max-w-md w-full bg-surface p-8 rounded-2xl shadow-xl" style={{ border: '1px solid var(--border-default)' }}>
+            <p className="text-center" style={{ color: 'var(--text-muted)' }}>Loading authentication components...</p>
+          </div>
+        </AnimatedSection>
+      </div>
     );
   }
 
   // firebaseAuth is guaranteed to be non-null here, so we can pass it safely.
   return (
-    <AnimatedSection>
-      <ForgotPasswordForm auth={firebaseAuth} />
-    </AnimatedSection>
+    <div className="flex min-h-screen items-center justify-center p-6">
+      <AnimatedSection>
+        <ForgotPasswordForm auth={firebaseAuth} />
+      </AnimatedSection>
+    </div>
   );
 };
 

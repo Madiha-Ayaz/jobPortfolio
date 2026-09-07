@@ -2,8 +2,10 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useAuthState } from 'react-firebase-hooks/auth';
-import { User, Auth } from 'firebase/auth';
+import { User, Auth, getRedirectResult } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { isFirebaseConfigured } from '@/lib/firebase';
+import { trackUser } from '@/utils/analytics';
 
 interface AuthContextType {
   user: User | null | undefined;
@@ -19,12 +21,38 @@ const AuthContext = createContext<AuthContextType>({
 
 // This new component will contain the hook and only be rendered on the client.
 const AuthProviderContent = ({ children }: { children: ReactNode }) => {
+    // When Firebase is not configured, `auth` is null. react-firebase-hooks
+    // dereferences auth.currentUser internally, which crashes on null, so we
+    // skip the hook entirely and report a signed-out state instead.
+    if (!isFirebaseConfigured || !auth) {
+        return (
+            <AuthContext.Provider value={{ user: null, loading: false, error: undefined }}>
+                {children}
+            </AuthContext.Provider>
+        );
+    }
+
     // The non-null assertion is safe here because this component only renders on the client.
     const [user, loading, error] = useAuthState(auth as Auth);
-    
+
     useEffect(() => {
-        // You can add any side effects here, like analytics or logging,
-        // when the auth state changes.
+        // Consume a pending redirect sign-in result (Google Sign-in fallback
+        // flow). Fire and forget — useAuthState reflects the resulting user.
+        getRedirectResult(auth as Auth).catch(() => {
+            /* no pending redirect — ignore */
+        });
+    }, []);
+
+    useEffect(() => {
+        // Link a signed-in Firebase user to Neon so analytics are per-person.
+        if (user) {
+            trackUser({
+                uid: user.uid,
+                email: user.email || undefined,
+                name: user.displayName || undefined,
+                provider: user.providerData?.[0]?.providerId || undefined,
+            });
+        }
     }, [user]);
 
     return (

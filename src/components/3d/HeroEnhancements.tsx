@@ -34,7 +34,8 @@ export function ShootingStars({ count = 5 }: { count?: number }) {
       const z = -5 + Math.sin(p * Math.PI) * 2;
       child.position.set(x, y, z);
       const opacity = Math.sin(p * Math.PI);
-      (child as THREE.Mesh).material && ((child as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = opacity;
+      (child as THREE.Mesh).material &&
+        (((child as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = opacity);
     });
   });
   return (

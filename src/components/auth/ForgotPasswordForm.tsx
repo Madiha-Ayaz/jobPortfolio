@@ -25,11 +25,11 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ auth }) => {
   };
 
   return (
-    <div className="max-w-md mx-auto bg-gray-800/20 p-8 rounded-lg border border-border-color">
-      <h1 className="text-3xl font-bold text-center mb-6">Forgot Password</h1>
+    <div className="max-w-md w-full bg-surface p-8 rounded-2xl shadow-xl" style={{ border: '1px solid var(--border-default)' }}>
+      <h1 className="text-3xl font-bold text-center mb-6" style={{ color: 'var(--text-heading)' }}>Forgot Password</h1>
       
       {emailSent && (
-        <p className="text-green-500 text-center mb-4">
+        <p className="text-green-400 text-center mb-4">
           Password reset email sent! Please check your inbox (and spam folder).
         </p>
       )}
@@ -38,7 +38,7 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ auth }) => {
       {!emailSent ? (
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-text-secondary mb-2">
+            <label htmlFor="email" className="block text-sm font-medium mb-2" style={{ color: 'var(--text-muted)' }}>
               Enter your account email
             </label>
             <input
@@ -47,12 +47,14 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ auth }) => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full bg-background border border-border-color text-text px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+              className="w-full px-4 py-2 rounded-md focus:outline-none focus:ring-2 focus:ring-accent"
+              style={{ background: 'var(--input-bg)', border: '1px solid var(--input-border)', color: 'var(--text-heading)' }}
             />
           </div>
           <button 
             type="submit" 
-            className="w-full bg-accent text-white font-bold py-3 rounded-md hover:bg-accent-dark transition-colors disabled:opacity-50"
+            className="w-full font-bold py-3 rounded-md transition-colors disabled:opacity-50"
+            style={{ background: 'var(--accent)', color: '#fff' }}
             disabled={sending}
           >
             {sending ? 'Sending...' : 'Send Reset Email'}
@@ -60,13 +62,13 @@ const ForgotPasswordForm: React.FC<ForgotPasswordFormProps> = ({ auth }) => {
         </form>
       ) : (
         <div className="text-center">
-          <p className="text-text-secondary">You can now close this page.</p>
+          <p style={{ color: 'var(--text-muted)' }}>You can now close this page.</p>
         </div>
       )}
 
-      <p className="text-center text-sm text-text-secondary mt-8">
+      <p className="text-center text-sm mt-8" style={{ color: 'var(--text-muted)' }}>
         Remember your password?{' '}
-        <Link to="/auth/login" className="font-medium text-accent hover:underline">
+        <Link to="/auth/login" className="font-medium hover:underline" style={{ color: 'var(--accent)' }}>
           Login
         </Link>
       </p>

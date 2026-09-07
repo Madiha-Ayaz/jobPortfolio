@@ -1,21 +1,53 @@
-/**
- * BlogPostCard
- * ------------
- * 3D-feel blog post card used on the Blog index.
- *  - 3D tilt on hover (TiltCard).
- *  - Cursor-tracked coloured glow.
- *  - Parallax depth on the cover image vs the text.
- *  - GSAP entrance animation.
- */
+import { useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { BlogPost } from '@/lib/data';
-import { useGSAP } from '@gsap/react';
-import gsap from 'gsap';
-import { useRef } from 'react';
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import TiltCard, { TiltLayer } from '@/components/3d/TiltCard';
+import { useTheme } from '@/context/ThemeContext';
 
-gsap.registerPlugin(ScrollTrigger);
+export const readingTime = (text: string): number =>
+  Math.max(1, Math.round((text || '').trim().split(/\s+/).length / 220));
+
+/* Shared pointer-tilt hook → drives the .bt-* 3D card CSS vars (see blog styles). */
+export function useTilt<E extends HTMLElement = HTMLElement>(maxX = 12, maxY = 14) {
+  const ref = useRef<E>(null);
+  const reduced = useRef(false);
+
+  useEffect(() => {
+    reduced.current =
+      typeof window !== 'undefined' &&
+      !!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }, []);
+
+  const onPointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    if (reduced.current) return;
+    const el = ref.current;
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const px = (e.clientX - r.left) / r.width - 0.5;
+    const py = (e.clientY - r.top) / r.height - 0.5;
+    el.style.setProperty('--bt-rx', `${(-py * maxX).toFixed(2)}deg`);
+    el.style.setProperty('--bt-ry', `${(px * maxY).toFixed(2)}deg`);
+    el.style.setProperty('--bt-gx', `${(px * 50 + 50).toFixed(2)}%`);
+    el.style.setProperty('--bt-gy', `${(py * 50 + 50).toFixed(2)}%`);
+  };
+
+  const onPointerLeave = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.setProperty('--bt-rx', '0deg');
+    el.style.setProperty('--bt-ry', '0deg');
+  };
+
+  return { ref, onPointerMove, onPointerLeave };
+}
+
+const ACCENTS = [
+  { strong: '#8b5cf6', accent: '#c4b5fd' },
+  { strong: '#22d3ee', accent: '#a5f3fc' },
+  { strong: '#e879f9', accent: '#f5d0fe' },
+  { strong: '#fbbf24', accent: '#fde68a' },
+  { strong: '#34d399', accent: '#a7f3d0' },
+  { strong: '#f472b6', accent: '#fbcfe8' },
+];
 
 interface BlogPostCardProps {
   post: BlogPost;
@@ -23,65 +55,97 @@ interface BlogPostCardProps {
 }
 
 const BlogPostCard = ({ post, index }: BlogPostCardProps) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-
-  useGSAP(() => {
-    gsap.fromTo(
-      cardRef.current,
-      { autoAlpha: 0, y: 50 },
-      {
-        autoAlpha: 1,
-        y: 0,
-        duration: 0.6,
-        delay: (index % 2) * 0.15,
-        ease: 'power3.out',
-        scrollTrigger: {
-          trigger: cardRef.current,
-          start: 'top 90%',
-          toggleActions: 'play none none none',
-        },
-      }
-    );
-  }, { scope: cardRef });
+  const { t } = useTheme();
+  const tilt = useTilt<HTMLAnchorElement>();
+  const acc = ACCENTS[index % ACCENTS.length];
+  const date = new Date(post.date).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+  const minutes = readingTime(post.content);
+  const cardVars = {
+    '--bt-strong': acc.strong,
+    '--bt-accent': acc.accent,
+  } as React.CSSProperties;
 
   return (
-    <div ref={cardRef} className="opacity-0 h-full">
-      <Link to={`/blog/${post.slug}`} className="block group h-full">
-        <TiltCard
-          className="rounded-xl overflow-hidden border border-border-color bg-gray-800/30 backdrop-blur-sm h-full"
-          intensity={9}
-          depth={24}
-          glowColor="rgba(236, 72, 153, 0.30)"
-        >
-          <div className="relative h-56 overflow-hidden">
-            <TiltLayer depth={36} className="w-full h-full">
-              <img
-                src={post.imageUrl}
-                alt={post.title}
-                className="w-full h-full object-cover transition-transform duration-500 will-change-transform"
-                loading="lazy"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-            </TiltLayer>
+    <Link
+      ref={tilt.ref}
+      to={`/blog/${post.slug}`}
+      onPointerMove={tilt.onPointerMove}
+      onPointerLeave={tilt.onPointerLeave}
+      className="bt group block h-full rounded-[22px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent"
+    >
+      <div className="bt-rot" style={cardVars}>
+        {/* ── Media layer ── */}
+        <div className="bt-media">
+          {post.imageUrl && post.imageUrl !== '#' ? (
+            <img
+              src={post.imageUrl}
+              alt={post.title}
+              className="bt-img"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="w-full h-full"
+              style={{
+                background:
+                  'linear-gradient(135deg, color-mix(in srgb, var(--bt-strong) 42%, transparent), color-mix(in srgb, var(--bt-accent) 30%, transparent))',
+              }}
+            />
+          )}
+          <span className="bt-chip bt-chip-time">
+            {minutes} {t('blog.minRead')}
+          </span>
+          <span className="bt-chip bt-chip-cat">
+            <i className="bt-cat-dot" />
+            {post.category || (post.tags?.[0] ?? 'General')}
+          </span>
+        </div>
+
+        {/* ── Body layer ── */}
+        <div className="bt-body">
+          <div className="bt-author">
+            <img
+              src="/arab-woman-abaya-hijab-girl-muslim-working-laptop-office-education-online-entrepreneur-freelancer_1030874-9889.avif"
+              alt={post.author}
+              className="bt-avatar"
+              loading="lazy"
+            />
+            <div className="bt-author-meta">
+              <span className="bt-author-name">{post.author}</span>
+              <span className="bt-date">{date}</span>
+            </div>
+          </div>
+          <h3 className="bt-title">{post.title}</h3>
+          <p className="bt-excerpt line-clamp-2">{post.excerpt}</p>
+
+          <div className="flex flex-wrap gap-1.5 mb-5">
+            {(post.tags || []).slice(0, 3).map((tag) => (
+              <span
+                key={tag}
+                className="px-2.5 py-1 text-[10px] font-semibold rounded-full bt-tag"
+              >
+                {tag}
+              </span>
+            ))}
           </div>
 
-          <TiltLayer depth={16} className="p-6">
-            <p className="text-sm text-text-secondary mb-2">
-              {new Date(post.date).toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </p>
-            <h3 className="text-2xl font-bold text-text group-hover:text-accent transition-colors mb-3 drop-shadow">
-              {post.title}
-            </h3>
-            <p className="text-text-secondary mb-4">{post.excerpt}</p>
-            <span className="font-semibold text-accent">Read More →</span>
-          </TiltLayer>
-        </TiltCard>
-      </Link>
-    </div>
+          <span className="bt-read">
+            {t('blog.readMore')}
+            <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+            </svg>
+          </span>
+        </div>
+
+        {/* ── 3D gloss + halo ── */}
+        <div className="bt-halo" aria-hidden="true" />
+        <i className="bt-glare" aria-hidden="true" />
+      </div>
+    </Link>
   );
 };
 

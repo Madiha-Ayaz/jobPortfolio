@@ -13,9 +13,10 @@ import express from 'express';
 import cors from 'cors';
 import fs from 'fs';
 import path from 'path';
-import { config, hasAiKey, activeProvider, activeModel } from './lib/config.ts';
+import { config, hasAiKey, activeProvider, activeModel, hasDatabase } from './lib/config.ts';
 import { isAiAvailable, complete } from './lib/aiClient.ts';
 import { rateLimit, clientIp, sanitizeText } from './lib/security.ts';
+import { initDb, isDbAvailable, saveChatMessage } from './lib/db.ts';
 
 import agentRoutes from './routes/agent.ts';
 import searchRoutes from './routes/search.ts';
@@ -23,6 +24,9 @@ import jobMatchRoutes from './routes/jobMatch.ts';
 import articleRoutes from './routes/article.ts';
 import contactRoutes from './routes/contact.ts';
 import recommendRoutes from './routes/recommend.ts';
+import contentRoutes from './routes/content.ts';
+import analyticsRoutes from './routes/analytics.ts';
+import adminRoutes from './routes/admin.ts';
 
 const app = express();
 
@@ -30,7 +34,16 @@ app.use(
   cors({
     origin(origin, callback) {
       // Allow same-origin (curl/tests) and configured origins.
-      if (!origin || config.corsOrigins.includes(origin)) return callback(null, true);
+      if (!origin) return callback(null, true);
+      // Local dev convenience: any localhost / 127.0.0.1 port is allowed,
+      // since Vite may bind to 5173, 5174, 5175, ... or other ports.
+      try {
+        const { hostname } = new URL(origin);
+        if (hostname === 'localhost' || hostname === '127.0.0.1') return callback(null, true);
+      } catch {
+        /* not a parseable URL — fall through to the allowlist */
+      }
+      if (config.corsOrigins.includes(origin)) return callback(null, true);
       return callback(null, false);
     },
   })
@@ -48,14 +61,15 @@ app.use('/api', (req, res, next) => {
 });
 
 // ── Health ────────────────────────────────────────────────────────────
-app.get('/api/health', (_req, res) => {
+app.get('/api/health', async (_req, res) => {
   res.json({
     ok: true,
     hasKey: hasAiKey,
     aiAvailable: isAiAvailable(),
     provider: activeProvider,
     model: activeModel,
-    features: ['agent', 'search', 'job-match', 'article-summary', 'article-qa', 'contact-assist', 'recommend'],
+    database: { available: isDbAvailable(), configured: hasDatabase },
+    features: ['agent', 'search', 'job-match', 'article-summary', 'article-qa', 'contact-assist', 'recommend', 'analytics', 'admin'],
     time: new Date().toISOString(),
   });
 });
@@ -67,6 +81,9 @@ app.use('/api/job-match', jobMatchRoutes);
 app.use('/api/article', articleRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/recommend', recommendRoutes);
+app.use('/api/content', contentRoutes);
+app.use('/api/analytics', analyticsRoutes);
+app.use('/api/admin', adminRoutes);
 
 // ── Legacy compatibility (kept so existing frontend clients keep working)
 app.post('/api/chat', async (req, res) => {
@@ -75,6 +92,12 @@ app.post('/api/chat', async (req, res) => {
     if (!Array.isArray(messages) || messages.length === 0) {
       return res.status(400).json({ error: 'messages array is required' });
     }
+    const lastUser = [...messages].reverse().find((m: any) => m.role === 'user');
+    const userText = sanitizeText(typeof lastUser?.content === 'string' ? lastUser.content : '', 4000);
+    const sessionId = sanitizeText(typeof req.body.sessionId === 'string' ? req.body.sessionId : '', 200) || 'unknown';
+    const visitorId = sanitizeText(typeof req.body.visitorId === 'string' ? req.body.visitorId : '', 200);
+    saveChatMessage({ sessionId, visitorId: visitorId || undefined, role: 'user', content: userText, page: '/chat' });
+
     const reply = await complete(
       messages.map((m: any) => ({ role: m.role, content: String(m.content || '') })),
       { model: model || activeModel, maxTokens: 1000 }
@@ -82,6 +105,7 @@ app.post('/api/chat', async (req, res) => {
     if (reply === null) {
       return res.status(500).json({ error: 'AI is not configured (missing OPENROUTER_API_KEY) or the request failed.' });
     }
+    saveChatMessage({ sessionId, visitorId: visitorId || undefined, role: 'assistant', content: reply, page: '/chat' });
     return res.json({ content: reply, message: reply });
   } catch (error: any) {
     console.error('[chat] error:', error?.message || String(error));
@@ -142,4 +166,8 @@ app.listen(config.port, () => {
   console.log(`Provider: ${activeProvider || 'NONE'} | key: ${hasAiKey ? 'loaded' : 'MISSING'}`);
   console.log(`Model: ${activeModel}`);
   console.log(`AI available: ${isAiAvailable()}`);
+  console.log(`Neon DB: ${hasDatabase ? (isDbAvailable() ? 'connected' : 'connecting…') : 'not configured'}`);
+  initDb().then(() => {
+    console.log(`Neon DB ready: ${isDbAvailable() ? 'connected' : 'unavailable'}`);
+  });
 });

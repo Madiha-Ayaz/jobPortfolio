@@ -8,8 +8,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { PaperAirplaneIcon, EnvelopeIcon, PhoneIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { getFirestore, collection, addDoc, serverTimestamp } from 'firebase/firestore';
-import { app } from '@/lib/firebase';
+import { useNotification } from '@/context/NotificationContext';
+import ContactFormMascot from '@/components/contact/ContactFormMascot';
+import { apiUrl } from '@/utils/api';
+import { useTheme } from '@/context/ThemeContext';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -45,6 +47,8 @@ interface FormData {
 }
 
 export default function EnhancedContactForm() {
+  const { notify } = useNotification();
+  const { t } = useTheme();
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -63,27 +67,36 @@ export default function EnhancedContactForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setLoading(true);
-    setStatus('Submitting...');
+    setStatus(t('contact.formSending'));
 
     try {
-      const db = getFirestore(app);
-      const contactsCollection = collection(db, 'contacts');
-
-      await addDoc(contactsCollection, {
-        ...formData,
-        timestamp: serverTimestamp(),
+      const res = await fetch(apiUrl('contact/submit'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formData.name,
+          email: formData.email,
+          subject: formData.subject,
+          message: formData.message,
+        }),
       });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error || t('contact.formErrorMsg'));
+      }
 
       setSubmitted(true);
       setStatus('');
       setFormData({ name: '', email: '', subject: '', message: '' });
+      notify('success', t('contact.formSuccessTitle'), t('contact.formSuccessMsg'));
 
       setTimeout(() => {
         setSubmitted(false);
       }, 5000);
     } catch (error: any) {
       console.error('Error submitting contact form:', error);
-      setStatus(`Error: ${error.message || 'Failed to send message.'}`);
+      setStatus(`Error: ${error.message || t('contact.formErrorMsg')}`);
+      notify('error', t('contact.formErrorTitle'), error?.message || t('contact.formErrorMsg'));
       setTimeout(() => setStatus(''), 5000);
     } finally {
       setLoading(false);
@@ -98,10 +111,15 @@ export default function EnhancedContactForm() {
       initial="hidden"
       animate="visible"
     >
+      {/* Draggable mascot — eyes follow your caret, reacts to errors & success */}
+      <motion.div variants={itemVariants}>
+        <ContactFormMascot success={submitted} />
+      </motion.div>
+
       {/* Name Field */}
       <motion.div variants={itemVariants}>
-        <label htmlFor="name" className="block text-sm font-semibold text-slate-300 mb-2">
-          Full Name
+        <label htmlFor="name" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-heading)' }}>
+          {t('contact.formName')}
         </label>
         <motion.input
           variants={inputVariants}
@@ -113,15 +131,15 @@ export default function EnhancedContactForm() {
           value={formData.name}
           onChange={handleChange}
           required
-          placeholder="Your full name"
-          className="w-full px-4 py-3 bg-slate-800/40 border border-slate-700/60 text-slate-100 placeholder-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-600/50 focus:border-slate-600 focus:bg-slate-800/60 transition-all duration-300 backdrop-blur-sm"
+          placeholder={t('contact.formNamePlaceholder')}
+          className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 backdrop-blur-sm input"
         />
       </motion.div>
 
       {/* Email Field */}
       <motion.div variants={itemVariants}>
-        <label htmlFor="email" className="block text-sm font-semibold text-slate-300 mb-2">
-          Email Address
+        <label htmlFor="email" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-heading)' }}>
+          {t('contact.formEmail')}
         </label>
         <motion.input
           variants={inputVariants}
@@ -134,14 +152,14 @@ export default function EnhancedContactForm() {
           onChange={handleChange}
           required
           placeholder="your.email@example.com"
-          className="w-full px-4 py-3 bg-slate-800/40 border border-slate-700/60 text-slate-100 placeholder-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-600/50 focus:border-slate-600 focus:bg-slate-800/60 transition-all duration-300 backdrop-blur-sm"
+          className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 backdrop-blur-sm input"
         />
       </motion.div>
 
       {/* Subject Field */}
       <motion.div variants={itemVariants}>
-        <label htmlFor="subject" className="block text-sm font-semibold text-slate-300 mb-2">
-          Subject
+        <label htmlFor="subject" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-heading)' }}>
+          {t('contact.formSubject')}
         </label>
         <motion.input
           variants={inputVariants}
@@ -152,15 +170,15 @@ export default function EnhancedContactForm() {
           id="subject"
           value={formData.subject}
           onChange={handleChange}
-          placeholder="Project or inquiry topic"
-          className="w-full px-4 py-3 bg-slate-800/40 border border-slate-700/60 text-slate-100 placeholder-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-600/50 focus:border-slate-600 focus:bg-slate-800/60 transition-all duration-300 backdrop-blur-sm"
+          placeholder={t('contact.formSubjectPlaceholder')}
+          className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 backdrop-blur-sm input"
         />
       </motion.div>
 
       {/* Message Field */}
       <motion.div variants={itemVariants}>
-        <label htmlFor="message" className="block text-sm font-semibold text-slate-300 mb-2">
-          Message
+        <label htmlFor="message" className="block text-sm font-semibold mb-2" style={{ color: 'var(--text-heading)' }}>
+          {t('contact.formMessage')}
         </label>
         <motion.textarea
           variants={inputVariants}
@@ -172,8 +190,8 @@ export default function EnhancedContactForm() {
           value={formData.message}
           onChange={handleChange}
           required
-          placeholder="Please share details about your inquiry..."
-          className="w-full px-4 py-3 bg-slate-800/40 border border-slate-700/60 text-slate-100 placeholder-slate-600 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-600/50 focus:border-slate-600 focus:bg-slate-800/60 transition-all duration-300 backdrop-blur-sm resize-none"
+          placeholder={t('contact.formMessagePlaceholder')}
+          className="w-full px-4 py-3 rounded-xl focus:outline-none focus:ring-2 transition-all duration-300 backdrop-blur-sm input resize-none"
         />
       </motion.div>
 
@@ -187,17 +205,17 @@ export default function EnhancedContactForm() {
           disabled={loading || submitted}
           whileHover={{ scale: loading || submitted ? 1 : 1.02 }}
           whileTap={{ scale: loading || submitted ? 1 : 0.98 }}
-          className="w-full flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed border border-slate-600 hover:border-slate-500"
+          className="w-full flex items-center justify-center gap-2 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed btn-primary"
         >
           {submitted ? (
             <>
               <CheckCircleIcon className="w-5 h-5" />
-              <span>Message Sent!</span>
+              <span>{t('contact.formSent')}</span>
             </>
           ) : (
             <>
               <PaperAirplaneIcon className="w-5 h-5" />
-              <span>{loading ? 'Sending...' : 'Send Message'}</span>
+              <span>{loading ? t('contact.formSending') : t('contact.formSend')}</span>
             </>
           )}
         </motion.button>
@@ -208,7 +226,7 @@ export default function EnhancedContactForm() {
         initial={{ opacity: 0 }}
         animate={{ opacity: status ? 1 : 0 }}
         transition={{ duration: 0.3 }}
-        className="text-center text-sm font-medium text-slate-400"
+        className="text-center text-sm font-medium" style={{ color: 'var(--text-muted)' }}
       >
         {status}
       </motion.div>

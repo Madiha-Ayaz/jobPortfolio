@@ -10,16 +10,24 @@ import { AGENT_SYSTEM } from '../lib/prompts.ts';
 import { profileToText, getPostBySlug } from '../lib/portfolio.ts';
 import { searchPortfolioLocal } from '../lib/search.ts';
 import { sanitizeText } from '../lib/security.ts';
+import { saveChatMessage } from '../lib/db.ts';
 
 const router = Router();
 
 const TOOLS = [
-  { type: 'function' as const, function: { name: 'navigate', description: 'Navigate the user to a specific page in the portfolio.', parameters: { type: 'object' as const, properties: { path: { type: 'string' as const, description: 'Route path like /, /about, /projects, /blog, /contact, /ai' } }, required: ['path'] } } },
+  { type: 'function' as const, function: { name: 'navigate', description: 'Navigate the user to a specific page in the portfolio.', parameters: { type: 'object' as const, properties: { path: { type: 'string' as const, description: 'Route path like /, /about, /projects, /blog, /contact, /dashboard, /ai' } }, required: ['path'] } } },
   { type: 'function' as const, function: { name: 'openProject', description: 'Open the projects page, optionally highlighting a project by its title.', parameters: { type: 'object' as const, properties: { projectName: { type: 'string' as const } }, required: ['projectName'] } } },
   { type: 'function' as const, function: { name: 'openBlogPost', description: 'Open a specific blog post by slug.', parameters: { type: 'object' as const, properties: { slug: { type: 'string' as const } }, required: ['slug'] } } },
   { type: 'function' as const, function: { name: 'toggleTheme', description: 'Toggle between dark and light mode.', parameters: { type: 'object' as const, properties: {} } } },
   { type: 'function' as const, function: { name: 'openContactForm', description: 'Open the contact page.', parameters: { type: 'object' as const, properties: {} } } },
   { type: 'function' as const, function: { name: 'openAITools', description: 'Open the AI tools / job match page.', parameters: { type: 'object' as const, properties: {} } } },
+  { type: 'function' as const, function: { name: 'createProject', description: 'Create a new portfolio project. Requires title and description. The client will confirm with the user before saving.', parameters: { type: 'object' as const, properties: { title: { type: 'string' as const, description: 'Project title' }, description: { type: 'string' as const, description: 'Professional project description' }, tags: { type: 'array' as const, items: { type: 'string' as const }, description: 'Optional technology tags' }, liveUrl: { type: 'string' as const }, repoUrl: { type: 'string' as const }, imageUrl: { type: 'string' as const } }, required: ['title', 'description'] } } },
+  { type: 'function' as const, function: { name: 'updateProject', description: 'Update an existing project (title, description, tags, links). The client will confirm with the user before saving.', parameters: { type: 'object' as const, properties: { id: { type: 'number' as const, description: 'The numeric project id' }, title: { type: 'string' as const }, description: { type: 'string' as const, description: 'Improved professional description' }, tags: { type: 'array' as const, items: { type: 'string' as const } }, liveUrl: { type: 'string' as const }, repoUrl: { type: 'string' as const }, imageUrl: { type: 'string' as const } }, required: ['id'] } } },
+  { type: 'function' as const, function: { name: 'deleteProject', description: 'Delete a project by id. DESTRUCTIVE — the client will always confirm with the user before executing.', parameters: { type: 'object' as const, properties: { id: { type: 'number' as const, description: 'The numeric project id' } }, required: ['id'] } } },
+  { type: 'function' as const, function: { name: 'createBlogPost', description: 'Create a new blog post. Requires title and content. The client will confirm before saving.', parameters: { type: 'object' as const, properties: { title: { type: 'string' as const }, content: { type: 'string' as const, description: 'HTML or plain text content' }, excerpt: { type: 'string' as const }, tags: { type: 'array' as const, items: { type: 'string' as const } }, imageUrl: { type: 'string' as const } }, required: ['title', 'content'] } } },
+  { type: 'function' as const, function: { name: 'updateBlogPost', description: 'Update an existing blog post (title, content, tags, etc.). The client will confirm before saving.', parameters: { type: 'object' as const, properties: { id: { type: 'number' as const }, title: { type: 'string' as const }, content: { type: 'string' as const, description: 'Improved content' }, excerpt: { type: 'string' as const }, tags: { type: 'array' as const, items: { type: 'string' as const } }, imageUrl: { type: 'string' as const } }, required: ['id'] } } },
+  { type: 'function' as const, function: { name: 'deleteBlogPost', description: 'Delete a blog post by id. DESTRUCTIVE — the client will always confirm with the user before executing.', parameters: { type: 'object' as const, properties: { id: { type: 'number' as const } }, required: ['id'] } } },
+  { type: 'function' as const, function: { name: 'updateProfile', description: 'Update portfolio profile fields (name, role, tagline, bio, location, email). The client will confirm before saving.', parameters: { type: 'object' as const, properties: { name: { type: 'string' as const }, role: { type: 'string' as const }, tagline: { type: 'string' as const }, bio: { type: 'string' as const }, location: { type: 'string' as const }, email: { type: 'string' as const } }, required: [] } } },
 ];
 
 interface AgentSource {
@@ -98,6 +106,14 @@ router.post('/', async (req, res) => {
         }
       })(),
     }));
+
+    // ── Persist the exchange to Neon (per visitor / session) ──
+    const sessionId = sanitizeText(typeof req.body.sessionId === 'string' ? req.body.sessionId : '', 200) || 'unknown';
+    const visitorId = sanitizeText(typeof req.body.visitorId === 'string' ? req.body.visitorId : '', 200);
+    const page = sanitizeText(currentPath, 300);
+    const lastUserMsg = queryText;
+    if (lastUserMsg) saveChatMessage({ sessionId, visitorId: visitorId || undefined, role: 'user', content: lastUserMsg, page });
+    if (reply) saveChatMessage({ sessionId, visitorId: visitorId || undefined, role: 'assistant', content: reply, page });
 
     // Confidence: grounded answers score by top match; ungrounded answers get a neutral band.
     const confidence =
