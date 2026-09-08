@@ -336,6 +336,7 @@ const FunnyLogin: React.FC = () => {
   const [password, setPassword] = useState('');
   const { user } = useAuth();
   const signedIn = !!user;
+  const navigate = useNavigate();
   const [errorMessage, setErrorMessage] = useState('');
   const [hintVisible, setHintVisible] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -353,7 +354,6 @@ const FunnyLogin: React.FC = () => {
   const [lowFx, setLowFx] = useState(false);
 
   const wrongCountRef = useRef(0);
-  const navigate = useNavigate();
   const [canvasReady, setCanvasReady] = useState(false);
 
   useEffect(() => {
@@ -453,6 +453,23 @@ const FunnyLogin: React.FC = () => {
     }, 2400);
     window.setTimeout(() => navigate('/'), 5200);
   }, [navigate, setSpeech]);
+
+  // When a Google redirect sign-in returns to this page, `user` becomes
+  // available via AuthContext. Navigate the freshly signed-in user home
+  // instead of leaving them stranded on the login form. The redirect flow
+  // reloads the whole page, so a full window navigation is the most reliable
+  // way back in (the router's navigate can race with route re-mounts).
+  const didRedirectSignIn = useRef(false);
+  const didNavigateHome = useRef(false);
+  useEffect(() => {
+    if (user && !didRedirectSignIn.current) {
+      didRedirectSignIn.current = true;
+      if (typeof window !== 'undefined' && !didNavigateHome.current) {
+        didNavigateHome.current = true;
+        window.location.href = '/';
+      }
+    }
+  }, [user, navigate]);
 
   const signInWithGoogle = async () => {
     if (loading || loginSuccess) return;

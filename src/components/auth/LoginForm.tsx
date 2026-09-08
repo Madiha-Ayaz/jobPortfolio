@@ -1,9 +1,10 @@
 
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSignInWithEmailAndPassword, useSignInWithGoogle } from 'react-firebase-hooks/auth';
+import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
 import { Auth } from 'firebase/auth';
 import { useAuth } from '@/context/AuthContext';
+import { signInWithGoogle } from '@/lib/firebase';
 import RunningButton from '@/components/auth/RunningButton';
 import RopeMan, { RopeManState } from '@/components/3d/RopeMan';
 
@@ -29,7 +30,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ auth }) => {
   const { user, loading: authLoading } = useAuth();
 
   const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
-  const [signInWithGoogle] = useSignInWithGoogle(auth);
 
   // The RopeMan state: 'pulling' = form is not ready yet (he is being pulled),
   // 'anchored' = form is valid (he is at rest),
@@ -94,16 +94,21 @@ const LoginForm: React.FC<LoginFormProps> = ({ auth }) => {
     setError(null);
     setLoading(true);
 
-    if (!signInWithGoogle) {
-      setError('Authentication service not available.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      const userCredential = await signInWithGoogle();
-      if (userCredential) {
+      const result = await signInWithGoogle();
+      if (result === null) {
+        // Popup flow: navigate immediately. Redirect flow: the page reloads
+        // and AuthContext will pick up the user, then App's useEffect
+        // navigates away from the auth page.
         navigate('/');
+      } else {
+        // result is a string message — shown only if redirect itself failed.
+        // "Redirecting to Google…" is informational, not an error.
+        if (result.startsWith('Redirecting')) {
+          // redirect in progress, do nothing — the page will reload
+        } else {
+          setError(result);
+        }
       }
     } catch (err: any) {
       setError(err.message || 'Google Sign-in failed. Please try again.');

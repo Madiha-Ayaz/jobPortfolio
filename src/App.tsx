@@ -1,5 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { lazy, Suspense, useEffect } from 'react';
+import { useAuth } from './context/AuthContext';
 import Home from './pages/page';
 import About from './pages/about/page';
 import ForgotPassword from './pages/auth/forgot-password/page';
@@ -30,8 +31,19 @@ const CursorFollower = lazy(() => import('./components/3d/CursorFollower'));
 /** Inner component that has access to all providers */
 function AppContent() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, loading } = useAuth();
   // Full-bleed scenes (login, register) hide the chrome so they own the whole viewport.
   const fullscreen = location.pathname === '/auth/login' || location.pathname === '/auth/register' || location.pathname === '/auth/forgot-password';
+
+  // If a signed-in user lands on (or returns to) an auth page, send them home.
+  // This covers the Google redirect return, where the full page reloads on the
+  // login route and the user is already authenticated.
+  useEffect(() => {
+    if (!loading && user && fullscreen) {
+      navigate('/', { replace: true });
+    }
+  }, [user, loading, fullscreen, navigate, location.pathname]);
 
   // ── Neon analytics: session open/close + page views ──
   useEffect(() => {

@@ -6,6 +6,5 @@ dist
 .github
 .openclaude
 DATA
-public
 *.md
 !README.md

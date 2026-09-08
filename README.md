@@ -1,3 +1,14 @@
+---
+title: Nova AI — Job Portfolio
+emoji: 🚀
+colorFrom: indigo
+colorTo: blue
+sdk: docker
+pinned: false
+license: mit
+app_port: 7860
+---
+
 # Job Portfolio
 
 A modern, AI-powered developer portfolio built with **React + TypeScript + Vite**. Includes an AI project finder, an AI job-compatibility analyzer, a portfolio chatbot agent, Firebase auth, and animated 3D backgrounds.

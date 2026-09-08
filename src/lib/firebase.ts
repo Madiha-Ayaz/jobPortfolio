@@ -181,34 +181,46 @@ export function describeAuthError(error: unknown): string {
 
 /**
  * Start Sign in with Google.
- * Uses the popup flow first, and automatically falls back to the redirect
- * flow when popups are blocked or unsupported (common on mobile / strict
- * browsers). Returns null on success (or when a redirect was started) and a
- * friendly error message otherwise.
+ *
+ * Uses the POPUP flow first (the most reliable UX — no full page reload, and
+ * the resulting user is returned immediately via useAuthState). If the browser
+ * blocks or does not support popups (most notably Firefox's Cross-Origin-
+ * Opener-Policy blocks popup window.closed detection), we fall back to the
+ * REDIRECT flow, whose result is consumed by AuthContext via getRedirectResult.
+ *
+ * Returns null on success and a friendly error message otherwise.
  */
 export async function signInWithGoogle(): Promise<string | null> {
   if (!auth || !isFirebaseConfigured) {
     return "Firebase is not configured yet. Add your .env credentials and restart the dev server.";
   }
+
   const tryPopup = async () => {
     const provider = new GoogleAuthProvider();
     provider.addScope("email");
     provider.addScope("profile");
     await signInWithPopup(auth as Auth, provider);
   };
+
   const tryRedirect = async () => {
     const provider = new GoogleAuthProvider();
     provider.addScope("email");
     provider.addScope("profile");
     await signInWithRedirect(auth as Auth, provider);
   };
+
   try {
     await tryPopup();
     return null;
   } catch (err: any) {
     const code = err?.code || "";
-    // Popups blocked / unsupported → redirect flow is the standard fallback.
-    if (code === "auth/popup-blocked" || code === "auth/operation-not-supported-in-this-environment") {
+    // Popups blocked / unsupported → redirect flow is the reliable fallback.
+    if (
+      code === "auth/popup-blocked" ||
+      code === "auth/operation-not-supported-in-this-environment" ||
+      code === "auth/popup-closed-by-user" ||
+      code === "auth/cancelled-popup-request"
+    ) {
       try {
         await tryRedirect();
         return null;
@@ -217,8 +229,8 @@ export async function signInWithGoogle(): Promise<string | null> {
       }
     }
     // A stale pending-redirect from a previously-failed sign-in is the #1
-    // cause of authorized-domain errors persisting after the console is
-    // fixed. Clear it once, then use the redirect flow which is more tolerant.
+    // cause of authorized-domain errors persisting. Clear it once, then use
+    // the redirect flow which is more tolerant.
     if (code === "auth/unauthorized-domain") {
       await resetFirebaseAuth();
       await new Promise((r) => setTimeout(r, 50));
